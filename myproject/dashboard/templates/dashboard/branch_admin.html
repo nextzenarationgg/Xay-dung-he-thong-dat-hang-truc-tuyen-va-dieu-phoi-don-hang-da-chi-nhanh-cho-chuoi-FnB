@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản trị chi nhánh - Miêu Quán</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f6f9;
+        }
+
+        header {
+            background: #176b55;
+            color: white;
+            padding: 20px 35px;
+        }
+
+        .container {
+            padding: 30px;
+        }
+
+        .menu {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000012;
+        }
+
+        .card h3 {
+            margin-top: 0;
+        }
+
+        .card a {
+            display: inline-block;
+            background: #176b55;
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .logout {
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>MIÊU QUÁN</h1>
+    <p>Hệ thống quản trị chi nhánh</p>
+    <p>Xin chào {{ request.user.username }}!</p>
+    <a class="logout" href="{% url 'logout' %}">Đăng xuất</a>
+</header>
+
+<div class="container">
+
+    <h2>Chức năng quản lý</h2>
+
+    <div class="menu">
+
+        <div class="card">
+            <h3>Quản lý nhân viên</h3>
+            <p>Xem danh sách và quản lý tài khoản nhân viên.</p>
+            <a href="{% url 'employee_list' %}">Quản lý nhân viên</a>
+        </div>
+
+        <div class="card">
+            <h3>Quản lý đơn hàng</h3>
+            <p>Theo dõi và xử lý đơn hàng của chi nhánh.</p>
+            <span>Đang phát triển</span>
+        </div>
+
+        <div class="card">
+            <h3>Quản lý thực đơn</h3>
+            <p>Quản lý món ăn và thông tin thực đơn.</p>
+            <span>Đang phát triển</span>
+        </div>
+
+        <div class="card">
+            <h3>Báo cáo doanh thu</h3>
+            <p>Theo dõi doanh thu của chi nhánh.</p>
+            <span>Đang phát triển</span>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

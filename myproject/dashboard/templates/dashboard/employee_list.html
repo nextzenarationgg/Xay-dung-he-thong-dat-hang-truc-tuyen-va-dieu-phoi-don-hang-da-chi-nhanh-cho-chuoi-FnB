@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý nhân viên - Miêu Quán</title>
+</head>
+<body>
+
+    <h1>MIÊU QUÁN</h1>
+
+    <h2>Quản lý nhân viên</h2>
+
+    <p>
+        Chi nhánh:
+        <strong>{{ branch.name }}</strong>
+    </p>
+
+    <p>
+        Tài khoản quản trị:
+        {{ request.user.username }}
+    </p>
+
+    <h3>Danh sách nhân viên</h3>
+
+    <table border="1" cellpadding="10">
+        <thead>
+            <tr>
+                <th>Tên đăng nhập</th>
+                <th>Email</th>
+                <th>Trạng thái</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td>{{ employee.username }}</td>
+                <td>{{ employee.email }}</td>
+                <td>
+                    {% if employee.is_active %}
+                        Đang hoạt động
+                    {% else %}
+                        Đã khóa
+                    {% endif %}
+                </td>
+            </tr>
+
+            {% empty %}
+            <tr>
+                <td colspan="3">
+                    Chi nhánh chưa có nhân viên.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p>
+        <a href="{% url 'branch_admin_dashboard' %}">
+            Quay lại trang quản trị
+        </a>
+    </p>
+
+    <p>
+        <a href="{% url 'logout' %}">Đăng xuất</a>
+    </p>
+
+</body>
+</html>
