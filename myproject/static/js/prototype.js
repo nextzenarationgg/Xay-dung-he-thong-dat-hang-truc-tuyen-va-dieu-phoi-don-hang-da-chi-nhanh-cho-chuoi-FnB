@@ -32,19 +32,19 @@ var D=[
 D.forEach(function(d){d.global=true});
 var DM={};D.forEach(function(d){DM[d.id]=d});
 var BR=[
- {id:'CN01',n:'Thạch Khôi',addr:'Số 58 Quốc lộ 5, Phường Thạch Khôi, TP. Hải Phòng',lat:20.9122,lng:106.3715,x:130,y:250,open:true,accepting:true,radius:6.5,cap:14,base:4,prep:12,hours:'08:00 – 22:30',mgr:'Nguyễn Thị Hằng',tel:'0220 3555 101',staff:11},
- {id:'CN02',n:'Hải Tân',addr:'Số 25 Nguyễn Lương Bằng, Phường Hải Tân, TP. Hải Phòng',lat:20.9389,lng:106.3302,x:290,y:170,open:true,accepting:true,radius:6,cap:12,base:6,prep:11,hours:'08:00 – 22:00',mgr:'Phạm Văn Đức',tel:'0220 3555 102',staff:9},
- {id:'CN03',n:'Lê Thanh Nghị',addr:'Số 112 Lê Thanh Nghị, Phường Lê Thanh Nghị, TP. Hải Phòng',lat:20.9261,lng:106.3097,x:385,y:235,open:true,accepting:true,radius:6,cap:12,base:9,prep:13,hours:'09:00 – 22:00',mgr:'Lê Thu Trang',tel:'0220 3555 103',staff:10},
- {id:'CN04',n:'Tứ Minh',addr:'Số 14 Nguyễn Thị Duệ, Phường Tứ Minh, TP. Hải Phòng',lat:20.9547,lng:106.3188,x:470,y:120,open:true,accepting:true,radius:7.5,cap:10,base:4,prep:14,hours:'08:30 – 21:30',mgr:'Đỗ Quang Huy',tel:'0220 3555 104',staff:7},
- {id:'CN05',n:'Nam Đồng',addr:'Số 203 Điện Biên Phủ, Phường Nam Đồng, TP. Hải Phòng',lat:20.9338,lng:106.3405,x:300,y:335,open:true,accepting:true,radius:7,cap:10,base:3,prep:10,hours:'08:00 – 22:00',mgr:'Vũ Minh Châu',tel:'0220 3555 105',staff:6}
+ {id:'CN01',n:'Ba Đình',addr:'Số 58 Quốc lộ 5, Phường Ba Đình, TP. Hà Nội',lat:20.9122,lng:106.3715,x:130,y:250,open:true,accepting:true,radius:6.5,cap:14,base:4,prep:12,hours:'08:00 – 22:30',mgr:'Nguyễn Thị Hằng',tel:'0220 3555 101',staff:11},
+ {id:'CN02',n:'Cầu Giấy',addr:'Số 25 Nguyễn Lương Bằng, Phường Cầu Giấy, TP. Hà Nội',lat:20.9389,lng:106.3302,x:290,y:170,open:true,accepting:true,radius:6,cap:12,base:6,prep:11,hours:'08:00 – 22:00',mgr:'Phạm Văn Đức',tel:'0220 3555 102',staff:9},
+ {id:'CN03',n:'Mễ Trì Hạ',addr:'Số 112 Mễ Trì Hạ, Phường Mễ Trì Hạ, TP. Hà Nội',lat:20.9261,lng:106.3097,x:385,y:235,open:true,accepting:true,radius:6,cap:12,base:9,prep:13,hours:'09:00 – 22:00',mgr:'Lê Thu Trang',tel:'0220 3555 103',staff:10},
+ {id:'CN04',n:'Long Biên',addr:'Số 14 Nguyễn Thị Duệ, Phường Long Biên, TP. Hà Nội',lat:20.9547,lng:106.3188,x:470,y:120,open:true,accepting:true,radius:7.5,cap:10,base:4,prep:14,hours:'08:30 – 21:30',mgr:'Đỗ Quang Huy',tel:'0220 3555 104',staff:7},
+ {id:'CN05',n:'Hà Đông',addr:'Số 203 Điện Biên Phủ, Phường Hà Đông, TP. Hà Nội',lat:20.9338,lng:106.3405,x:300,y:335,open:true,accepting:true,radius:7,cap:10,base:3,prep:10,hours:'08:00 – 22:00',mgr:'Vũ Minh Châu',tel:'0220 3555 105',staff:6}
 ];
 var BM={};BR.forEach(function(b){BM[b.id]=b});
 var ADDR={
- A1:{l:'Nhà riêng',a:'Số 18, KDC Thạch Khôi, Phường Thạch Khôi, TP. Hải Phòng',pt:[150,272],d:{CN01:1.2,CN02:3.4,CN03:5.1,CN04:6.8,CN05:7.9}},
- A2:{l:'Văn phòng',a:'Số 25 Nguyễn Lương Bằng, Phường Hải Tân, TP. Hải Phòng',pt:[300,150],d:{CN01:3.6,CN02:.9,CN03:2.7,CN04:3.3,CN05:5.8}},
- A3:{l:'Phòng trọ',a:'Số 7, ngõ 120 Điện Biên Phủ, Phường Nam Đồng, TP. Hải Phòng',pt:[318,352],d:{CN01:7.2,CN02:4.1,CN03:3,CN04:2.8,CN05:.8}},
- A4:{l:'Nhà bạn',a:'Số 90 Lê Thanh Nghị, Phường Lê Thanh Nghị, TP. Hải Phòng',pt:[398,216],d:{CN01:5,CN02:2.5,CN03:.7,CN04:3.9,CN05:3.2}},
- A5:{l:'Công ty',a:'Số 33 Nguyễn Thị Duệ, Phường Tứ Minh, TP. Hải Phòng',pt:[484,104],d:{CN01:6.6,CN02:3.9,CN03:3.7,CN04:.9,CN05:2.6}}
+ A1:{l:'Nhà riêng',a:'Số 18, KDC Ba Đình, Phường Ba Đình, TP. Hà Nội',pt:[150,272],d:{CN01:1.2,CN02:3.4,CN03:5.1,CN04:6.8,CN05:7.9}},
+ A2:{l:'Văn phòng',a:'Số 25 Nguyễn Lương Bằng, Phường Cầu Giấy, TP. Hà Nội',pt:[300,150],d:{CN01:3.6,CN02:.9,CN03:2.7,CN04:3.3,CN05:5.8}},
+ A3:{l:'Phòng trọ',a:'Số 7, ngõ 120 Điện Biên Phủ, Phường Hà Đông, TP. Hà Nội',pt:[318,352],d:{CN01:7.2,CN02:4.1,CN03:3,CN04:2.8,CN05:.8}},
+ A4:{l:'Nhà bạn',a:'Số 90 Mễ Trì Hạ, Phường Mễ Trì Hạ, TP. Hà Nội',pt:[398,216],d:{CN01:5,CN02:2.5,CN03:.7,CN04:3.9,CN05:3.2}},
+ A5:{l:'Công ty',a:'Số 33 Nguyễn Thị Duệ, Phường Long Biên, TP. Hà Nội',pt:[484,104],d:{CN01:6.6,CN02:3.9,CN03:3.7,CN04:.9,CN05:2.6}}
 };
 var ST=['Chờ xác nhận','Đã xác nhận','Đang chuẩn bị','Sẵn sàng giao','Đang giao','Hoàn thành'];
 var STC=['warn','terra','terra','ok','ok','mute'];
@@ -359,14 +359,14 @@ V.home={dj:['/','customer/home.html','HomeView.as_view()'],html:function(){
   var items=S.cart.length?S.cart:[['d1',1]];
   var res=evalBranches(items,S.addr),win=res.filter(function(r){return r.ok})[0];
   var near=BR.map(function(b){return {b:b,d:ADDR[S.addr].d[b.id]}}).sort(function(a,b){return a.d-b.d});
-  var ring='<svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="rp" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#rp" textLength="556" lengthAdjust="spacing">MIÊU QUÁN · ĐÚNG BẾP · ĐÚNG GIỜ · ĐIỀU PHỐI THÔNG MINH · HẢI PHÒNG ·</textPath></text></svg>';
-  var tk=win?'<div class="tk plate" style="padding:12px 14px"><div class="cap">Ví dụ điều phối</div><div style="font:800 17px/1.15 var(--f-d);font-stretch:110%;margin:6px 0 2px">Miêu Quán '+esc(win.b.n)+'</div><div class="mono dim" style="font-size:12px">'+dec(win.dist)+' km · tải '+Math.round(win.pct*100)+'% · ~'+win.prep+' phút chuẩn bị</div><div class="meter terra" style="margin-top:10px"><i style="width:'+win.score+'%"></i></div><div class="row" style="justify-content:space-between;margin-top:6px"><span class="cap">Điểm phù hợp</span><b class="num" style="font-size:22px">'+win.score+'</b></div></div>':'';
-  var hero='<section class="hero"><div><div class="cap" style="margin-bottom:18px">Chuỗi bếp Hải Phòng · 5 chi nhánh · Thứ Hai 12.10.2026</div>'+
+  var ring='<svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="rp" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#rp" textLength="556" lengthAdjust="spacing">MIÊU QUÁN · ĐÚNG BẾP · ĐÚNG GIỜ · ĐIỀU PHỐI THÔNG MINH · Hà Nội ·</textPath></text></svg>';
+  var tk = '';
+  var hero='<section class="hero"><div><div class="cap" style="margin-bottom:18px">Chuỗi bếp Hà Nội · 5 chi nhánh · Thứ Hai 12.10.2026</div>'+
    '<h1 class="hero-h"><span class="l1">Miêu Quán <b>–</b></span>Điều phối <span class="it u">thông minh,</span> đúng bếp phù hợp</h1>'+
    '<p class="lead" style="margin:22px 0 26px">Mỗi đơn được kiểm tra vùng giao, món còn hàng, tải bếp và thời gian chuẩn bị trong vài giây, rồi giao cho bếp phù hợp nhất với địa chỉ của bạn.</p>'+
    '<form class="searchbar" data-form="hsearch" role="search"><input id="hq" type="search" placeholder="Tìm cơm thố, nem nướng, mỳ cay, bún đậu…" aria-label="Tìm món"><button class="btn terra" type="submit" data-act="hsearch">Tìm món<span>&nbsp;→</span></button></form>'+
    '<div class="row" style="margin-top:16px">'+['Cơm thố','Nem nướng','Mỳ cay','Bún đậu'].map(function(t){return '<button class="chip" data-act="hchip" data-q="'+t+'">'+t+'</button>'}).join('')+'</div></div>'+
-   '<div class="emb"><div class="disc"></div><div class="cat">'+cat()+'</div>'+ring+'<div class="stamp">Điều phối<br>tự động · 2,4 giây</div>'+tk+'</div></section>';
+   '<div class="emb"><div class="disc"></div><div class="cat">'+cat()+'</div>'+ring+'<div class="stamp">Điều phối <br>đơn hàng siêu tốc</div>'+tk+'</div></section>';
   var cats='<section class="sec"><div class="sech"><h2 class="h2">Chọn theo <span class="it">khẩu vị</span></h2><hr class="foil"></div><div class="catstrip">'+CATS.map(function(c){var first=D.filter(function(d){return d.c===c[0]})[0];return '<button data-act="hcat" data-c="'+c[0]+'"><div class="art">'+art(first.id)+'</div><div class="cl"><b>'+c[1]+'</b><span class="cap">'+D.filter(function(d){return d.c===c[0]}).length+' món</span></div></button>'}).join('')+'</div></section>';
   var nearH='<section class="sec"><div class="sech"><h2 class="h2">Chi nhánh <span class="it">gần bạn</span></h2><hr class="foil"></div><div class="bento"><div class="plate s5"><div class="fld"><label for="addrsel">Giao đến</label><select id="addrsel" class="in" data-in="addr">'+Object.keys(ADDR).map(function(k){return '<option value="'+k+'"'+(S.addr===k?' selected':'')+'>'+ADDR[k].l+' · '+ADDR[k].a+'</option>'}).join('')+'</select></div><p class="dim" style="margin-top:14px;font-size:13.5px">Khoảng cách tính theo đường đi từ chi nhánh đến địa chỉ giao. Hệ thống vẫn tự chọn bếp, danh sách này giúp bạn biết bếp nào đang gần.</p></div>'+
    '<div class="plate s7 flat"><div class="brlist">'+near.map(function(x){var b=x.b,p=liveLoad(b)/b.cap,st=!b.open?['Đóng cửa','mute']:(!b.accepting?['Tạm ngưng','warn']:(p*100>RULES.maxLoad?['Quá tải','bad']:['Đang mở','ok']));
@@ -378,7 +378,7 @@ V.home={dj:['/','customer/home.html','HomeView.as_view()'],html:function(){
    '<div><div class="num">3</div><h3 class="h3" style="margin:10px 0 6px">Chọn điểm cao nhất</h3><p class="dim" style="font-size:13.5px">Đơn được giao cho bếp xếp hạng đầu. Hòa điểm thì chọn bếp gần hơn.</p></div>'+
    '<div><div class="num">4</div><h3 class="h3" style="margin:10px 0 6px">Theo dõi</h3><p class="dim" style="font-size:13.5px">Bạn thấy bếp được chọn, thời gian chuẩn bị và từng bước giao hàng.</p></div></div>'+
    '<div class="plate" style="margin-top:22px"><div class="row" style="margin-bottom:12px"><div class="grow"><div class="cap">Chạy thật với giỏ hàng hiện tại</div><b>'+esc(itemsText(items))+'</b> <span class="dim">· giao tới '+esc(ADDR[S.addr].l)+'</span></div><button class="btn sm" data-act="go" data-k="menu">Đổi món</button></div>'+gateMatrix(res)+'</div></section>';
-  var foot='<footer class="foot"><span class="mono">MIÊU QUÁN · Hải Phòng</span><span>Hotline 1900 5555 05</span><span>Dữ liệu và thanh toán trong bản mẫu này là mô phỏng.</span></footer>';
+  var foot='<footer class="foot"><span class="mono">MIÊU QUÁN · Hà Nội</span><span>Hotline 1900 5555 05</span><span>Dữ liệu và thanh toán trong bản mẫu này là mô phỏng.</span></footer>';
   return hero+cats+nearH+feat+how+foot;
 }};
 ACT.hsearch=function(){var i=$('#hq');S.q=i?i.value:'';S.cat='all';go('menu')};
@@ -603,7 +603,7 @@ V.account={dj:['/tai-khoan/','customer/account.html','AccountView (tabs: ?tab=pr
      '<div class="plate ink s5"><div class="cap">Hạng thành viên</div><div class="num" style="font-size:44px;margin:8px 0">Mèo Bạc</div><p style="opacity:.8;font-size:13.5px">14 đơn đã hoàn thành · 1.280 điểm. Mỗi 1.000đ chi tiêu được 1 điểm.</p></div></div>';
   }else if(S.accTab==='addr'){
     body='<div class="bento"><div class="s7 col">'+S.saved.map(function(k){var a=ADDR[k];return '<div class="plate"><div class="row"><div class="grow"><b>'+esc(a.l)+'</b> '+(S.defAddr===k?pill('Mặc định','terra'):'')+'<div class="dim" style="font-size:13.5px;margin-top:4px">'+esc(a.a)+'</div></div><div class="acts"><button class="btn sm ghost" data-act="defaddr" data-k2="'+k+'"'+(S.defAddr===k?' disabled':'')+'>Đặt mặc định</button><button class="btn sm ghost" data-act="rmaddr" data-k2="'+k+'"'+(S.defAddr===k?' disabled':'')+'>Xóa</button></div></div></div>'}).join('')+'</div>'+
-     '<div class="plate s5"><div class="cap" style="margin-bottom:12px">Thêm địa chỉ</div><div class="col"><div class="fld"><label for="nl">Tên gọi</label><input id="nl" class="in" placeholder="Ví dụ: Nhà ngoại"></div><div class="fld"><label for="ns">Số nhà, tên đường</label><input id="ns" class="in" placeholder="Ví dụ: Số 5, ngõ 12 Lê Thanh Nghị"></div><div class="fld"><label for="na">Khu vực</label><select id="na" class="in">'+Object.keys(ADDR).slice(0,5).map(function(k){return '<option value="'+k+'">'+esc(ADDR[k].a.split(', ').slice(-2)[0])+'</option>'}).join('')+'</select></div><button class="btn terra" data-act="addaddr">Lưu địa chỉ</button></div></div></div>';
+     '<div class="plate s5"><div class="cap" style="margin-bottom:12px">Thêm địa chỉ</div><div class="col"><div class="fld"><label for="nl">Tên gọi</label><input id="nl" class="in" placeholder="Ví dụ: Nhà ngoại"></div><div class="fld"><label for="ns">Số nhà, tên đường</label><input id="ns" class="in" placeholder="Ví dụ: Số 5, ngõ 12 Mễ Trì Hạ"></div><div class="fld"><label for="na">Khu vực</label><select id="na" class="in">'+Object.keys(ADDR).slice(0,5).map(function(k){return '<option value="'+k+'">'+esc(ADDR[k].a.split(', ').slice(-2)[0])+'</option>'}).join('')+'</select></div><button class="btn terra" data-act="addaddr">Lưu địa chỉ</button></div></div></div>';
   }else if(S.accTab==='reviews'){
     var done=myOrders().filter(function(o){return o.st===5});
     body='<div class="bento"><div class="s7 col">'+S.reviews.map(function(r){return '<div class="plate"><div class="row"><b>'+esc(r.dish)+'</b><span class="stars">'+'★'.repeat(r.star)+'<span style="opacity:.3">'+'★'.repeat(5-r.star)+'</span></span><span class="mono dim right" style="font-size:12px">'+r.date+'</span></div><p style="margin-top:8px">'+esc(r.text)+'</p><div class="mono dim" style="font-size:11.5px;margin-top:8px">Đơn '+r.no+'</div></div>'}).join('')+'</div>'+
