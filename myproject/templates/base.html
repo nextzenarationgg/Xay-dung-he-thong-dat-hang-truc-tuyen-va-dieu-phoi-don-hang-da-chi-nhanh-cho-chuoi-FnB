@@ -1,0 +1,349 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#14213d">
+    <meta name="color-scheme" content="light dark">
+
+    <title>{% block title %}Miêu Quán{% endblock %}</title>
+
+    <!-- Font chữ dùng trong prototype gốc -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@1,500;1,700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- CSS dùng chung -->
+    <link rel="stylesheet" href="{% static 'css/shared/base.css' %}">
+
+    <!-- CSS của các khu vực giao diện -->
+    <link rel="stylesheet" href="{% static 'css/customer/customer.css' %}">
+    <link rel="stylesheet" href="{% static 'css/branch_admin/branch-admin.css' %}">
+    <link rel="stylesheet" href="{% static 'css/branch_staff/branch-staff.css' %}">
+    <link rel="stylesheet" href="{% static 'css/super_admin/super-admin.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body
+    data-page="{% block prototype_initial_page %}{% if page_key %}{{ page_key|escape }}{% elif page_group == 'branch_admin' %}b-dash{% elif page_group == 'branch_staff' %}b-ship{% elif page_group == 'super_admin' %}a-ctrl{% else %}home{% endif %}{% endblock %}"
+    data-page-group="{% block prototype_page_group %}{{ page_group|default:''|escape }}{% endblock %}"
+>
+
+    <!-- SVG sprite lấy từ prototype.html -->
+    <svg
+        width="0"
+        height="0"
+        style="position:absolute"
+        aria-hidden="true"
+        focusable="false"
+    >
+        <defs>
+            <!-- Logo mèo Miêu Quán -->
+            <symbol id="cat" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="1"/>
+
+                <circle cx="46" cy="17" r="1.6" fill="currentColor"/>
+                <circle cx="60" cy="13.5" r="1.6" fill="currentColor"/>
+                <circle cx="74" cy="17" r="1.6" fill="currentColor"/>
+
+                <path
+                    d="M34 64 L31 28 L53 43 Q60 41.5 67 43 L89 28 L86 64 Q88 86 60 94 Q32 86 34 64Z"
+                    fill="currentColor"
+                />
+
+                <path d="M38 40 L48 46 L39 55Z M82 40 L72 46 L81 55Z" class="cterra"/>
+
+                <path
+                    d="M42 66 Q49 59 56 66 Q49 71 42 66Z M64 66 Q71 59 78 66 Q71 71 64 66Z"
+                    class="ceye"
+                />
+
+                <ellipse cx="49" cy="66" rx="1.8" ry="4" fill="currentColor"/>
+                <ellipse cx="71" cy="66" rx="1.8" ry="4" fill="currentColor"/>
+
+                <path d="M56.5 74 L63.5 74 L60 78.5Z" class="cterra"/>
+
+                <path
+                    d="M60 78.5 Q56 83 51.5 80.5 M60 78.5 Q64 83 68.5 80.5"
+                    fill="none"
+                    class="cline"
+                />
+
+                <path
+                    d="M41 76 L16 70 M41 80 L16 82 M79 76 L104 70 M79 80 L104 82"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    fill="none"
+                />
+
+                <circle
+                    cx="71"
+                    cy="66"
+                    r="9"
+                    fill="none"
+                    class="cgold"
+                    stroke-width="2"
+                />
+
+                <path
+                    d="M80 70 Q86 86 78 100"
+                    class="cgold"
+                    fill="none"
+                    stroke-width="1.2"
+                />
+
+                <path
+                    d="M46 96 L60 92 L74 96 L74 104 L60 99 L46 104Z"
+                    fill="currentColor"
+                />
+
+                <circle cx="60" cy="96" r="3" class="cterra"/>
+            </symbol>
+
+            <!-- Icon tổng quan -->
+            <symbol id="i-grid" viewBox="0 0 24 24">
+                <path
+                    d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon danh sách -->
+            <symbol id="i-list" viewBox="0 0 24 24">
+                <path
+                    d="M5 6h14M5 12h14M5 18h14"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon món ăn -->
+            <symbol id="i-dish" viewBox="0 0 24 24">
+                <path
+                    d="M3 12h18a9 9 0 0 1-18 0zM8 5c0 2 2 2 2 4M14 5c0 2 2 2 2 4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon đơn hàng -->
+            <symbol id="i-box" viewBox="0 0 24 24">
+                <path
+                    d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon giao hàng -->
+            <symbol id="i-truck" viewBox="0 0 24 24">
+                <path
+                    d="M2 6h11v10H2zM13 10h5l3 3v3h-8M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon điều phối -->
+            <symbol id="i-radar" viewBox="0 0 24 24">
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="4.5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+                <path d="M12 12L18 6" stroke="currentColor" stroke-width="1.8"/>
+            </symbol>
+
+            <!-- Icon vị trí -->
+            <symbol id="i-pin" viewBox="0 0 24 24">
+                <path
+                    d="M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12zM12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon người dùng -->
+            <symbol id="i-user" viewBox="0 0 24 24">
+                <path
+                    d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 4-6 8-6s8 2 8 6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon báo cáo -->
+            <symbol id="i-chart" viewBox="0 0 24 24">
+                <path
+                    d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon cấu hình -->
+            <symbol id="i-cog" viewBox="0 0 24 24">
+                <path
+                    d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+
+            <!-- Icon cửa hàng -->
+            <symbol id="i-store" viewBox="0 0 24 24">
+                <path
+                    d="M3 9l2-5h14l2 5M3 9v11h18V9M3 9c0 2 4 2 4 0 0 2 5 2 5 0 0 2 5 2 5 0 0 2 4 2 4 0M9 20v-6h6v6"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                />
+            </symbol>
+        </defs>
+    </svg>
+
+    <!--
+        Vùng render chính.
+        JavaScript sử dụng #app để hiển thị header, sidebar và nội dung màn hình.
+    -->
+    <div id="app">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Vùng modal, overlay và các lớp giao diện -->
+    <div id="layer"></div>
+
+    <!-- Vùng thông báo -->
+    <div id="toast" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Vùng ghi chú triển khai Django -->
+    <div id="dev" hidden></div>
+
+    <!-- Cấu hình màn hình khởi tạo -->
+    <script>
+        (function () {
+            'use strict';
+
+            var body = document.body;
+
+            var initialPage = body.getAttribute('data-page') || 'home';
+            var pageGroup = body.getAttribute('data-page-group') || '';
+
+            var validPages = [
+                'home',
+                'menu',
+                'dish',
+                'cart',
+                'checkout',
+                'dispatch',
+                'tracking',
+                'orders',
+                'offers',
+                'account',
+
+                'b-dash',
+                'b-orders',
+                'b-menu',
+                'b-inv',
+                'b-ship',
+
+                'a-ctrl',
+                'a-disp',
+                'a-br',
+                'a-prod',
+                'a-ord',
+                'a-usr',
+                'a-rep',
+                'a-cfg'
+            ];
+
+            if (validPages.indexOf(initialPage) === -1) {
+                initialPage = 'home';
+            }
+
+            if (!pageGroup) {
+                if (initialPage.indexOf('b-') === 0) {
+                    pageGroup = initialPage === 'b-ship'
+                        ? 'branch_staff'
+                        : 'branch_admin';
+                } else if (initialPage.indexOf('a-') === 0) {
+                    pageGroup = 'super_admin';
+                } else {
+                    pageGroup = 'customer';
+                }
+            }
+
+            window.PROTOTYPE_PAGE = initialPage;
+            window.PROTOTYPE_PAGE_GROUP = pageGroup;
+
+            /*
+             * Giữ màn hình được chỉ định qua hash nếu hash hợp lệ.
+             * Nếu chưa có hash hợp lệ, thiết lập hash theo màn hình ban đầu.
+             */
+            var currentHash = (window.location.hash || '').replace(/^#/, '');
+            var currentHashPage = currentHash.split('.')[0];
+
+            if (validPages.indexOf(currentHashPage) === -1) {
+                var initialUrl =
+                    window.location.pathname +
+                    window.location.search +
+                    '#' +
+                    initialPage;
+
+                window.history.replaceState(
+                    window.history.state,
+                    '',
+                    initialUrl
+                );
+            }
+        })();
+    </script>
+
+    <!-- JavaScript dùng chung -->
+    <script defer src="{% static 'js/shared/data.js' %}"></script>
+    <script defer src="{% static 'js/shared/state.js' %}"></script>
+    <script defer src="{% static 'js/shared/helpers.js' %}"></script>
+    <script defer src="{% static 'js/shared/components.js' %}"></script>
+    <script defer src="{% static 'js/shared/events.js' %}"></script>
+
+    <!-- Module khách hàng -->
+    <script defer src="{% static 'js/customer/customer.js' %}"></script>
+
+    <!-- Module quản lý chi nhánh -->
+    <script defer src="{% static 'js/branch_admin/branch-admin.js' %}"></script>
+
+    <!-- Module nhân viên chi nhánh -->
+    <script defer src="{% static 'js/branch_staff/branch-staff.js' %}"></script>
+
+    <!-- Module quản trị hệ thống -->
+    <script defer src="{% static 'js/super_admin/super-admin.js' %}"></script>
+
+</body>
+</html>

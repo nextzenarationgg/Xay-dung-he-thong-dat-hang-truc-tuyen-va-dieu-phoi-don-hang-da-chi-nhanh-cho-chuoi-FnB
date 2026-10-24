@@ -1,10 +1,11 @@
+
 from django.urls import path
 from . import views
 
 urlpatterns = [
     path(
         'login/',
-        views.login_view, 
+        views.login_view,
         name='login'
     ),
 
@@ -30,5 +31,12 @@ urlpatterns = [
         'branch-admin/employees/',
         views.employee_list,
         name='employee_list'
+    ),
+
+    # Các page prototype
+    path(
+        'prototype/<str:page_key>/',
+        views.prototype_page,
+        name='prototype_page'
     ),
 ]

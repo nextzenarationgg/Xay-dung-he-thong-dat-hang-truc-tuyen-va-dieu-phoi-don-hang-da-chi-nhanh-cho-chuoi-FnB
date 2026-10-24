@@ -1,0 +1,27 @@
+/* ---------- dispatch ---------- */
+.dp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,4vw,48px);align-items:center}
+.radar{position:relative;aspect-ratio:1;width:100%;max-width:480px;margin:auto;border:1.5px solid var(--edge);border-radius:50%;background:var(--card);box-shadow:8px 8px 0 var(--edge);overflow:hidden}
+.radar svg.rg{position:absolute;inset:0;width:100%;height:100%;color:var(--edge-soft)}
+.sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0 292deg,color-mix(in srgb,var(--terra) 60%,transparent) 360deg);animation:spin 2.6s linear infinite}
+.radar.done .sweep{animation:none;opacity:0}
+.me{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;background:var(--ink);transform:rotate(45deg);z-index:3}
+.me::after{content:"";position:absolute;inset:-9px;border:1.5px solid var(--ink);animation:ping 1.8s ease-out infinite}
+.blip{position:absolute;transform:translate(-50%,-50%);z-index:2;opacity:0;transition:opacity .4s;text-align:center;pointer-events:none}
+.blip.on{opacity:1}
+.blip i{display:block;width:12px;height:12px;border:2px solid var(--terra);background:var(--paper);margin:0 auto;border-radius:50%}
+.blip em{font:600 10px/1.1 var(--f-m);font-style:normal;letter-spacing:.04em;background:var(--paper);padding:1px 4px;border:1px solid var(--edge-soft);display:inline-block;margin-top:3px;white-space:nowrap}
+.blip.x i{border-color:var(--bad);background:var(--bad);opacity:.55}
+.blip.x em{text-decoration:line-through;color:var(--ink-3)}
+.blip.win i{background:var(--terra);width:18px;height:18px;box-shadow:0 0 0 6px color-mix(in srgb,var(--terra) 30%,transparent)}
+.blip.win em{background:var(--terra);color:var(--on-terra);border-color:var(--terra)}
+.dsteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.dsteps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:14px 0;border-bottom:1px dashed var(--edge-soft);opacity:.45;transition:opacity .3s}
+.dsteps li.act,.dsteps li.ok{opacity:1}
+.dsteps .mk{width:30px;height:30px;border:1.5px solid var(--edge);display:grid;place-items:center;font:700 13px var(--f-m);transform:rotate(45deg)}
+.dsteps .mk b{transform:rotate(-45deg);font-weight:600}
+.dsteps li.act .mk{background:var(--terra);border-color:var(--terra);color:var(--on-terra);animation:pulse 1s infinite}
+.dsteps li.ok .mk{background:var(--ink);color:var(--paper)}
+.dsteps .rs{font:500 12px var(--f-m);color:var(--ink-3);margin-top:3px;min-height:18px}
+.reveal{animation:rise .5s both}
+
+
