@@ -20,11 +20,9 @@
     <!-- CSS dùng chung -->
     <link rel="stylesheet" href="{% static 'css/shared/base.css' %}">
 
-    <!-- CSS của các khu vực giao diện -->
-    <link rel="stylesheet" href="{% static 'css/customer/customer.css' %}">
-    <link rel="stylesheet" href="{% static 'css/branch_admin/branch-admin.css' %}">
-    <link rel="stylesheet" href="{% static 'css/branch_staff/branch-staff.css' %}">
-    <link rel="stylesheet" href="{% static 'css/super_admin/super-admin.css' %}">
+    {% if page_group == "branch_admin" or page_group == "branch_staff" %}
+    <link rel="stylesheet" href="{% static 'css/branch_staff/branch.css' %}">
+    {% endif %}
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -326,24 +324,17 @@
         })();
     </script>
 
-    <!-- JavaScript dùng chung -->
-    <script defer src="{% static 'js/shared/data.js' %}"></script>
-    <script defer src="{% static 'js/shared/state.js' %}"></script>
-    <script defer src="{% static 'js/shared/helpers.js' %}"></script>
-    <script defer src="{% static 'js/shared/components.js' %}"></script>
-    <script defer src="{% static 'js/shared/events.js' %}"></script>
-
-    <!-- Module khách hàng -->
+    <script defer src="{% static 'js/shared/app-core.js' %}"></script>
+    {% if page_group == "branch_admin" or page_group == "branch_staff" or page_group == "super_admin" %}
+    <script defer src="{% static 'js/shared/branch-actions.js' %}"></script>
+    {% endif %}
+    {% if page_group == "branch_admin" or page_group == "branch_staff" %}
+    <script defer src="{% static 'js/branch_staff/branch.js' %}"></script>
+    {% elif page_group == "super_admin" %}
+    <script defer src="{% static 'js/super_admin/admin.js' %}"></script>
+    {% else %}
     <script defer src="{% static 'js/customer/customer.js' %}"></script>
-
-    <!-- Module quản lý chi nhánh -->
-    <script defer src="{% static 'js/branch_admin/branch-admin.js' %}"></script>
-
-    <!-- Module nhân viên chi nhánh -->
-    <script defer src="{% static 'js/branch_staff/branch-staff.js' %}"></script>
-
-    <!-- Module quản trị hệ thống -->
-    <script defer src="{% static 'js/super_admin/super-admin.js' %}"></script>
+    {% endif %}
 
 </body>
 </html>
