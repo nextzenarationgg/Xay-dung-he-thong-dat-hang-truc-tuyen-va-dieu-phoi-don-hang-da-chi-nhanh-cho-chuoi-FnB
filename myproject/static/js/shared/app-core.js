@@ -67,7 +67,7 @@ var RULES0=JSON.parse(JSON.stringify(RULES));
 
 /* ================= STATE ================= */
 var S={key:PAGE_HOME,par:null,dev:false,cart:[['d1',1],['d3',2]],voucher:null,maxP:0,sort:'pop',addr:'A1',q:'',cat:'all',catHide:{},onlyAvail:false,
- co:{name:'Nguyễn Minh Khôi',phone:'0912345658',note:'',pay:'cod'},dq:1,spice:2,dnote:'',accTab:'profile',
+ co:{name:'Nguyễn Minh Khôi',phone:'0912345658',email:'',note:'',pay:'cod'},dq:1,spice:2,dnote:'',accTab:'profile',
  br:'CN01',bq:'',bst:'all',bpay:'all',bsel:null,bmq:'',binvQ:'',
  aSel:'CN01',aq:'',aBr:'all',aSt:'all',aPay:'all',aLayer:null,aPc:'all',aUr:'all',auq:'',apq:'',aRange:'7',
  sample:[['d1',1],['d3',2]],sampleAddr:'A1',simN:0,feed:[],
@@ -251,6 +251,8 @@ function pill(t,c){return '<span class="pill '+(c||'mute')+'">'+t+'</span>'}
 function stPill(st){return st===-1?pill('Đã hủy','bad'):pill(ST[st],STC[st])}
 function ph(eye,title,right){return '<div class="ph"><div class="grow"><div class="cap">'+eye+'</div><h1 class="h1">'+title+'</h1></div>'+(right||'')+'</div>'}
 function roleOf(k){return k.indexOf('b-')===0?'branch':(k.indexOf('a-')===0?'admin':'customer')}
+function isCustomerAuthenticated(){return document.body.dataset.customerAuthenticated==='true'}
+function requiresCustomerLogin(k){return ['account','orders','cart','checkout','dispatch','tracking'].indexOf(k)!==-1}
 function oBy(no){return orders.filter(function(o){return o.no===no})[0]}
 function loadCls(p){return p>=.9?'bad':(p>=.75?'warn':'ok')}
 function branchOpt(sel,all){return (all?'<option value="all"'+(sel==='all'?' selected':'')+'>Tất cả chi nhánh</option>':'')+BR.map(function(b){return '<option value="'+b.id+'"'+(sel===b.id?' selected':'')+'>'+b.id+' · '+b.n+'</option>'}).join('')}
@@ -313,6 +315,10 @@ function setHash(){try{var h=S.key+(S.par?'.'+S.par:'');if(location.hash!=='#'+h
 function stopDisp(){clearTimeout(dispT);dispT=null}
 var dispT=null;
 function go(k,par){
+  if(requiresCustomerLogin(k)&&!isCustomerAuthenticated()){
+    window.location.assign(document.body.dataset.signinUrl||'/customer/signin/');
+    return;
+  }
   if(roleOf(k)!==PAGE_ROLE)return;
   if(k!=='dispatch')stopDisp();
   S.key=k;S.par=par==null?null:par;S.layer=null;
@@ -338,6 +344,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Enter'){var el=e.tar
 function fromHash(){
   var h=(location.hash||'').slice(1);if(!h)return false;
   var i=h.indexOf('.'),k=i<0?h:h.slice(0,i),p=i<0?null:h.slice(i+1);
+  if(requiresCustomerLogin(k)&&!isCustomerAuthenticated()){
+    window.location.replace(document.body.dataset.signinUrl||'/customer/signin/');
+    return false;
+  }
   if(V[k]&&roleOf(k)===PAGE_ROLE){S.key=k;S.par=p;if(k==='dish')S.dq=1;return true}return false;
 }
 function initApp(){

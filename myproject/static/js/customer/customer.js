@@ -3,9 +3,11 @@
 function custNav(){
   var g={dish:'menu',cart:'cart',checkout:'cart',dispatch:'cart',tracking:'orders'}[S.key]||S.key;
   var it=[['home','Trang chủ'],['menu','Thực đơn'],['orders','Đơn hàng của tôi'],['offers','Ưu đãi'],['account','Tài khoản']];
-  return '<nav class="cnav" aria-label="Điều hướng khách hàng">'+it.map(function(x){return '<button class="'+(g===x[0]?'on':'')+'" data-act="go" data-k="'+x[0]+'">'+x[1]+'</button>'}).join('')+'<button class="cartb'+(g==='cart'?' on':'')+'" data-act="go" data-k="cart">Giỏ hàng <span class="badge">'+cartCount()+'</span></button></nav>';
+  var authenticated=isCustomerAuthenticated();
+  if(!authenticated)it=it.filter(function(x){return x[0]!=='orders'&&x[0]!=='offers'});
+  return '<nav class="cnav" aria-label="Điều hướng khách hàng">'+it.map(function(x){return '<button class="'+(g===x[0]?'on':'')+'" data-act="go" data-k="'+x[0]+'">'+x[1]+'</button>'}).join('')+(authenticated?'<button class="cartb'+(g==='cart'?' on':'')+'" data-act="go" data-k="cart">Giỏ hàng <span class="badge">'+cartCount()+'</span></button>':'')+'</nav>';
 }
-ACT.add=function(d){cartAdd(d.id,1);toast('Đã thêm '+DM[d.id].n);render()};
+ACT.add=function(d){if(!isCustomerAuthenticated()){go('account');return}cartAdd(d.id,1);toast('Đã thêm '+DM[d.id].n);render()};
 ACT.inc=function(d){cartAdd(d.id,1);render()};
 ACT.dec=function(d){var l=S.cart.filter(function(i){return i[0]===d.id})[0];if(l){if(l[1]>1)l[1]--;else S.cart=S.cart.filter(function(i){return i!==l})}render()};
 ACT.rm=function(d){S.cart=S.cart.filter(function(i){return i[0]!==d.id});render()};
@@ -93,7 +95,7 @@ V.dish={dj:['/thuc-don/<slug:dish>/','customer/dish_detail.html','DishDetailView
 INP.dnote=function(v){S.dnote=v};
 ACT.spice=function(d){S.spice=+d.i;render()};
 ACT.dq=function(d){S.dq=clamp(S.dq+ +d.v,1,20);render()};
-ACT.addq=function(d){var x=DM[d.id];cartAdd(d.id,S.dq);
+ACT.addq=function(d){if(!isCustomerAuthenticated()){go('account');return}var x=DM[d.id];cartAdd(d.id,S.dq);
   if(x.c==='my')S.inote[d.id]='Cấp độ cay '+S.spice+(S.dnote?' · '+S.dnote:'');else if(S.dnote)S.inote[d.id]=S.dnote;
   toast('Đã thêm '+S.dq+' × '+x.n);S.dq=1;render()};
 S.inote={};
@@ -256,7 +258,7 @@ V.account={dj:['/tai-khoan/','customer/account.html','AccountView (tabs: ?tab=pr
   var tabs=[['profile','Hồ sơ'],['addr','Địa chỉ đã lưu'],['reviews','Đánh giá'],['codes','Mã giảm giá']];
   var body='';
   if(S.accTab==='profile'){
-    body='<div class="bento"><div class="plate s7"><div class="f2"><div class="fld"><label for="pn">Họ và tên</label><input id="pn" class="in" value="'+esc(S.co.name)+'" data-in="co_name"></div><div class="fld"><label for="pp">Số điện thoại</label><input id="pp" class="in" value="'+esc(S.co.phone)+'" data-in="co_phone"></div><div class="fld" style="grid-column:1/-1"><label for="pe">Email</label><input id="pe" class="in" value="khoi.nguyen@example.vn"></div></div><div class="row" style="margin-top:18px"><button class="btn terra" data-act="saveprof">Lưu thay đổi</button></div></div>'+
+    body='<div class="bento"><div class="plate s7"><div class="f2"><div class="fld"><label for="pn">Họ và tên</label><input id="pn" class="in" value="'+esc(S.co.name)+'" data-in="co_name"></div><div class="fld"><label for="pp">Số điện thoại</label><input id="pp" class="in" value="'+esc(S.co.phone)+'" data-in="co_phone"></div><div class="fld" style="grid-column:1/-1"><label for="pe">Email</label><input id="pe" class="in" value="'+esc(S.co.email)+'"></div></div><div class="row" style="margin-top:18px;justify-content:space-between"><button class="btn terra" data-act="saveprof">Lưu thay đổi</button><button class="btn terra" type="submit" form="customer-logout-form">Đăng xuất</button></div></div>'+
      '<div class="plate ink s5"><div class="cap">Hạng thành viên</div><div class="num" style="font-size:44px;margin:8px 0">Mèo Bạc</div><p style="opacity:.8;font-size:13.5px">14 đơn đã hoàn thành · 1.280 điểm. Mỗi 1.000đ chi tiêu được 1 điểm.</p></div></div>';
   }else if(S.accTab==='addr'){
     body='<div class="bento"><div class="s7 col">'+S.saved.map(function(k){var a=ADDR[k];return '<div class="plate"><div class="row"><div class="grow"><b>'+esc(a.l)+'</b> '+(S.defAddr===k?pill('Mặc định','terra'):'')+'<div class="dim" style="font-size:13.5px;margin-top:4px">'+esc(a.a)+'</div></div><div class="acts"><button class="btn sm ghost" data-act="defaddr" data-k2="'+k+'"'+(S.defAddr===k?' disabled':'')+'>Đặt mặc định</button><button class="btn sm ghost" data-act="rmaddr" data-k2="'+k+'"'+(S.defAddr===k?' disabled':'')+'>Xóa</button></div></div></div>'}).join('')+'</div>'+
@@ -288,5 +290,15 @@ ACT.sendrv=function(){
   var o=oBy(no);S.reviews.unshift({no:no,dish:DM[o.items[0][0]].n,star:S.rv.star,text:S.rv.text.trim(),date:'12.10.2026'});S.rv={star:5,text:'',no:''};toast('Cảm ơn bạn đã đánh giá');render();
 };
 
+
+var customerDataNode=document.getElementById('customer-data');
+if(customerDataNode){
+  var customerData=JSON.parse(customerDataNode.textContent);
+  if(customerData){
+    S.co.name=customerData.name;
+    S.co.email=customerData.email;
+    S.co.phone=customerData.phone;
+  }
+}
 
 initApp();
