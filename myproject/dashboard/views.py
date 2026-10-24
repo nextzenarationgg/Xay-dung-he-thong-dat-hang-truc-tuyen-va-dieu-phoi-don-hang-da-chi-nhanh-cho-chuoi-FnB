@@ -13,10 +13,25 @@ User = get_user_model()
 
 @login_required
 def branch_admin_dashboard(request):
-    if request.user.role != 'branch_admin':
+    if request.user.role not in ['branch_admin', 'branch_staff']:
         raise PermissionDenied
 
-    return render(request, 'dashboard/branch_admin.html')
+    try:
+        membership = BranchMembership.objects.select_related(
+            'branch'
+        ).get(user=request.user)
+    except BranchMembership.DoesNotExist:
+        raise PermissionDenied
+
+    branch_name = membership.branch.name
+    if branch_name.startswith('Miêu Quán '):
+        branch_name = branch_name[len('Miêu Quán '):]
+
+    return render(
+        request,
+        'branch_staff/branch.html',
+        {'branch_name': branch_name},
+    )
 
 
 @login_required
@@ -24,7 +39,7 @@ def system_admin_dashboard(request):
     if request.user.role != 'super_admin':
         raise PermissionDenied
 
-    return render(request, 'dashboard/system_admin.html')
+    return render(request, 'super_admin/admin.html')
 
 
 def login_view(request):
@@ -41,10 +56,10 @@ def login_view(request):
         )
 
         if user is not None and user.is_active:
-            if user.role in ['branch_admin', 'super_admin']:
+            if user.role in ['branch_admin', 'branch_staff', 'super_admin']:
                 login(request, user)
 
-                if user.role == 'branch_admin':
+                if user.role in ['branch_admin', 'branch_staff']:
                     return redirect('branch_admin_dashboard')
 
                 return redirect('system_admin_dashboard')
