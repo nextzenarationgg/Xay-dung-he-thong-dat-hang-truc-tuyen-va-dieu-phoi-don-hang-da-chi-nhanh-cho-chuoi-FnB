@@ -184,6 +184,35 @@ http://127.0.0.1:8000/
 
 > Nếu dự án yêu cầu biến môi trường hoặc cấu hình database riêng, hãy thiết lập các giá trị tương ứng trước khi chạy ứng dụng.
 
+## 🛒 Đặt hàng (giai đoạn 1)
+
+Danh mục món ăn, giỏ hàng theo tài khoản khách hàng và đơn hàng được lưu bằng Django database. Sau khi cập nhật mã nguồn, chạy migration để tạo các bảng và nạp danh mục món mẫu:
+
+```bash
+cd myproject
+python manage.py migrate
+```
+
+Các API khách hàng hiện có:
+
+- `GET /api/products/`: danh mục món đang bán.
+- `GET /api/cart/`: giỏ hàng của tài khoản đang đăng nhập.
+- `POST /api/cart/items/<product_code>/`: thêm món; `PATCH` cập nhật số lượng; `DELETE` xóa món.
+- `GET /api/orders/`: lịch sử đơn của tài khoản đang đăng nhập.
+- `POST /api/orders/`: tạo đơn từ giỏ hàng; máy chủ tự tính giá theo danh mục trong database.
+- `GET /api/orders/<code>/`: xem đơn của chính tài khoản đó.
+
+### Tiếp nhận và xử lý đơn tại chi nhánh
+
+Đơn mới vào hộp đơn chung của các chi nhánh. Nhân viên đã được gán `BranchMembership` có thể xem đơn chờ; chi nhánh nào nhận trước sẽ được gán đơn đó. Chỉ chi nhánh đã nhận mới được chuyển trạng thái theo thứ tự `Đã xác nhận` → `Đang chuẩn bị` → `Sẵn sàng giao`. Sau đó chi nhánh chọn shipper thuộc chính chi nhánh; đơn chuyển sang `Đang giao`, rồi nhân viên xác nhận `Hoàn thành`. Các trạng thái và shipper được lưu trong database.
+
+- `GET /api/branch/orders/`: danh sách đơn chờ chung và đơn của chi nhánh đang đăng nhập.
+- `POST /api/branch/orders/<code>/claim/`: nhận một đơn chờ; yêu cầu đăng nhập bằng tài khoản nhân viên chi nhánh.
+- `POST /api/branch/orders/<code>/status/`: chuyển đơn sang `preparing` hoặc `ready`; chỉ chi nhánh sở hữu đơn được cập nhật.
+- `POST /api/branch/orders/<code>/assign-shipper/`: gán shipper bằng `{"shipper_id": <id>}` cho đơn `ready`, sau đó chuyển đơn sang `delivering`.
+
+Tài khoản shipper cần có role `delivery` và `BranchMembership` gắn với chi nhánh. Chưa có điều phối tự động hoặc giao diện/tài khoản shipper riêng; nhân viên chi nhánh cập nhật trạng thái hoàn tất giao. Phí giao hàng đang cố định 15.000đ. Tiền mặt khi nhận hàng được ghi nhận là phương thức thanh toán; chuyển khoản, MoMo và thẻ chỉ là lựa chọn mô phỏng, chưa kết nối cổng thanh toán thật.
+
 ## 🌐 Triển khai trực tuyến
 
 Dự án được cấu hình để triển khai trên nền tảng Render.
@@ -206,13 +235,13 @@ Ví dụ, nếu Render sử dụng thư mục gốc repository làm Root Directo
 cd myproject && gunicorn myproject.wsgi:application
 ```
 
-Để phục vụ file tĩnh, cần cấu hình Django phù hợp và thực hiện thu thập file tĩnh khi build:
+Build Command cần cài thư viện, chạy database migration và thu thập file tĩnh:
 
 ```bash
-cd myproject && python manage.py collectstatic --noinput
+pip install -r requirements.txt && cd myproject && python manage.py migrate && python manage.py collectstatic --noinput
 ```
 
-Lệnh build đầy đủ cần kết hợp với việc cài đặt thư viện từ `requirements.txt` theo cấu hình của dịch vụ Render.
+Nếu triển khai SQLite trên Render Free, database file nằm trên ổ đĩa tạm và dữ liệu giỏ hàng/đơn hàng có thể mất sau khi service khởi động lại, ngủ hoặc triển khai lại. Cần chuyển sang database bên ngoài hoặc ổ đĩa persistent phù hợp nếu cần giữ dữ liệu lâu dài.
 
 **Lưu ý về database:** Database trên môi trường triển khai cần được cấu hình riêng và bảo đảm lưu trữ bền vững. Nếu sử dụng SQLite trên hệ thống tệp không được lưu trữ bền vững, dữ liệu có thể bị mất khi dịch vụ được khởi tạo lại hoặc triển khai lại. PostgreSQL là lựa chọn phù hợp khi cần lưu trữ dữ liệu đơn hàng và khách hàng lâu dài.
 

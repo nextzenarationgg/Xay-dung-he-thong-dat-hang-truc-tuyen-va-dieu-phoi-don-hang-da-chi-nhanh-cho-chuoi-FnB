@@ -48,6 +48,7 @@
 <div id="layer"></div>
 <div id="toast" aria-live="polite"></div>
 <div id="dev" hidden></div>
+<form id="branch-csrf-form" hidden>{% csrf_token %}</form>
 <script src="{% static 'js/shared/app-core.js' %}"></script>
 <script src="{% static 'js/shared/branch-actions.js' %}"></script>
 <script src="{% static 'js/branch_staff/branch.js' %}"></script>

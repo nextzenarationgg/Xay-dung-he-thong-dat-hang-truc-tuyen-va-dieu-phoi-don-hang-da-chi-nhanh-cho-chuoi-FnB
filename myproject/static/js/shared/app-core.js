@@ -31,19 +31,19 @@ var D=[
 D.forEach(function(d){d.global=true});
 var DM={};D.forEach(function(d){DM[d.id]=d});
 var BR=[
- {id:'CN01',n:'Thạch Khôi',addr:'Số 58 Quốc lộ 5, Phường Thạch Khôi, TP. Hải Phòng',lat:20.9122,lng:106.3715,x:130,y:250,open:true,accepting:true,radius:6.5,cap:14,base:4,prep:12,hours:'08:00 – 22:30',mgr:'Nguyễn Thị Hằng',tel:'0220 3555 101',staff:11},
- {id:'CN02',n:'Hải Tân',addr:'Số 25 Nguyễn Lương Bằng, Phường Hải Tân, TP. Hải Phòng',lat:20.9389,lng:106.3302,x:290,y:170,open:true,accepting:true,radius:6,cap:12,base:6,prep:11,hours:'08:00 – 22:00',mgr:'Phạm Văn Đức',tel:'0220 3555 102',staff:9},
- {id:'CN03',n:'Lê Thanh Nghị',addr:'Số 112 Lê Thanh Nghị, Phường Lê Thanh Nghị, TP. Hải Phòng',lat:20.9261,lng:106.3097,x:385,y:235,open:true,accepting:true,radius:6,cap:12,base:9,prep:13,hours:'09:00 – 22:00',mgr:'Lê Thu Trang',tel:'0220 3555 103',staff:10},
- {id:'CN04',n:'Tứ Minh',addr:'Số 14 Nguyễn Thị Duệ, Phường Tứ Minh, TP. Hải Phòng',lat:20.9547,lng:106.3188,x:470,y:120,open:true,accepting:true,radius:7.5,cap:10,base:4,prep:14,hours:'08:30 – 21:30',mgr:'Đỗ Quang Huy',tel:'0220 3555 104',staff:7},
- {id:'CN05',n:'Nam Đồng',addr:'Số 203 Điện Biên Phủ, Phường Nam Đồng, TP. Hải Phòng',lat:20.9338,lng:106.3405,x:300,y:335,open:true,accepting:true,radius:7,cap:10,base:3,prep:10,hours:'08:00 – 22:00',mgr:'Vũ Minh Châu',tel:'0220 3555 105',staff:6}
+ {id:'CN01',n:'Cầu Giấy',addr:'Số 58 Quốc lộ 5, Quận Cầu Giấy, Hà Nội',lat:20.9122,lng:106.3715,x:130,y:250,open:true,accepting:true,radius:6.5,cap:14,base:4,prep:12,hours:'08:00 – 22:30',mgr:'Nguyễn Thị Hằng',tel:'0220 3555 101',staff:11},
+ {id:'CN02',n:'Ba Đình',addr:'Số 25 Nguyễn Lương Bằng, Quận Ba Đình, Hà Nội',lat:20.9389,lng:106.3302,x:290,y:170,open:true,accepting:true,radius:6,cap:12,base:6,prep:11,hours:'08:00 – 22:00',mgr:'Phạm Văn Đức',tel:'0220 3555 102',staff:9},
+ {id:'CN03',n:'Từ Liêm',addr:'Số 112 Lê Thanh Nghị, Quận Từ Liêm, Hà Nội',lat:20.9261,lng:106.3097,x:385,y:235,open:true,accepting:true,radius:6,cap:12,base:9,prep:13,hours:'09:00 – 22:00',mgr:'Lê Thu Trang',tel:'0220 3555 103',staff:10},
+ {id:'CN04',n:'Đống Đa',addr:'Số 14 Nguyễn Thị Duệ, Quận Đống Đa, Hà Nội',lat:20.9547,lng:106.3188,x:470,y:120,open:true,accepting:true,radius:7.5,cap:10,base:4,prep:14,hours:'08:30 – 21:30',mgr:'Đỗ Quang Huy',tel:'0220 3555 104',staff:7},
+ {id:'CN05',n:'Thanh Xuân',addr:'Số 203 Điện Biên Phủ, Quận Thanh Xuân, Hà Nội',lat:20.9338,lng:106.3405,x:300,y:335,open:true,accepting:true,radius:7,cap:10,base:3,prep:10,hours:'08:00 – 22:00',mgr:'Vũ Minh Châu',tel:'0220 3555 105',staff:6}
 ];
 var BM={};BR.forEach(function(b){BM[b.id]=b});
 var ADDR={
- A1:{l:'Nhà riêng',a:'Số 18, KDC Thạch Khôi, Phường Thạch Khôi, TP. Hải Phòng',pt:[150,272],d:{CN01:1.2,CN02:3.4,CN03:5.1,CN04:6.8,CN05:7.9}},
- A2:{l:'Văn phòng',a:'Số 25 Nguyễn Lương Bằng, Phường Hải Tân, TP. Hải Phòng',pt:[300,150],d:{CN01:3.6,CN02:.9,CN03:2.7,CN04:3.3,CN05:5.8}},
- A3:{l:'Phòng trọ',a:'Số 7, ngõ 120 Điện Biên Phủ, Phường Nam Đồng, TP. Hải Phòng',pt:[318,352],d:{CN01:7.2,CN02:4.1,CN03:3,CN04:2.8,CN05:.8}},
- A4:{l:'Nhà bạn',a:'Số 90 Lê Thanh Nghị, Phường Lê Thanh Nghị, TP. Hải Phòng',pt:[398,216],d:{CN01:5,CN02:2.5,CN03:.7,CN04:3.9,CN05:3.2}},
- A5:{l:'Công ty',a:'Số 33 Nguyễn Thị Duệ, Phường Tứ Minh, TP. Hải Phòng',pt:[484,104],d:{CN01:6.6,CN02:3.9,CN03:3.7,CN04:.9,CN05:2.6}}
+ A1:{l:'Nhà riêng',a:'Số 18, KDC Cầu Giấy, Quận Cầu Giấy, Hà Nội',pt:[150,272],d:{CN01:1.2,CN02:3.4,CN03:5.1,CN04:6.8,CN05:7.9}},
+ A2:{l:'Văn phòng',a:'Số 25 Nguyễn Lương Bằng, Quận Ba Đình, Hà Nội',pt:[300,150],d:{CN01:3.6,CN02:.9,CN03:2.7,CN04:3.3,CN05:5.8}},
+ A3:{l:'Phòng trọ',a:'Số 7, ngõ 120 Điện Biên Phủ, Quận Thanh Xuân, Hà Nội',pt:[318,352],d:{CN01:7.2,CN02:4.1,CN03:3,CN04:2.8,CN05:.8}},
+ A4:{l:'Nhà bạn',a:'Số 90 Lê Thanh Nghị, Quận Từ Liêm, Hà Nội',pt:[398,216],d:{CN01:5,CN02:2.5,CN03:.7,CN04:3.9,CN05:3.2}},
+ A5:{l:'Công ty',a:'Số 33 Nguyễn Thị Duệ, Quận Đống Đa, Hà Nội',pt:[484,104],d:{CN01:6.6,CN02:3.9,CN03:3.7,CN04:.9,CN05:2.6}}
 };
 var ST=['Chờ xác nhận','Đã xác nhận','Đang chuẩn bị','Sẵn sàng giao','Đang giao','Hoàn thành'];
 var STC=['warn','terra','terra','ok','ok','mute'];
@@ -66,12 +66,12 @@ var RULES={wd:40,wl:35,wp:25,maxKm:8,maxPrep:60,maxLoad:90};
 var RULES0=JSON.parse(JSON.stringify(RULES));
 
 /* ================= STATE ================= */
-var S={key:PAGE_HOME,par:null,dev:false,cart:[['d1',1],['d3',2]],voucher:null,maxP:0,sort:'pop',addr:'A1',q:'',cat:'all',catHide:{},onlyAvail:false,
+var S={key:PAGE_HOME,par:null,dev:false,cart:[],voucher:null,maxP:0,sort:'pop',addr:'A1',q:'',cat:'all',catHide:{},onlyAvail:false,
  co:{name:'Nguyễn Minh Khôi',phone:'0912345658',email:'',note:'',pay:'cod'},dq:1,spice:2,dnote:'',accTab:'profile',
  br:'CN01',bq:'',bst:'all',bpay:'all',bsel:null,bmq:'',binvQ:'',
  aSel:'CN01',aq:'',aBr:'all',aSt:'all',aPay:'all',aLayer:null,aPc:'all',aUr:'all',auq:'',apq:'',aRange:'7',
  sample:[['d1',1],['d3',2]],sampleAddr:'A1',simN:0,feed:[],
- disp:null,last:null,reviews:[
+ reviews:[
   {no:'MQ-261009-0376',dish:'Cơm thố xá xíu',star:5,text:'Cơm nóng, xá xíu mềm, giao nhanh hơn dự kiến.',date:'09.10.2026'},
   {no:'MQ-261005-0128',dish:'Mỳ cay hải sản',star:4,text:'Cay đúng cấp 3, mực hơi ít nhưng nước dùng ngon.',date:'05.10.2026'}],
  rv:{star:5,text:'',no:''},saved:['A1','A2','A5'],defAddr:'A1'};
@@ -116,11 +116,6 @@ function calc(items,o){
   return {sub:sub,fee:fee,disc:disc,msg:msg,total:Math.max(0,sub+fee-disc)};
 }
 function prepOf(o){return o.prep||Math.round(BM[o.br].prep+8+o.items.length*2)}
-function estDist(){
-  var r=evalBranches(S.cart,S.addr);var ok=r.filter(function(x){return x.ok})[0];
-  return ok?ok.dist:Math.min.apply(null,r.map(function(x){return x.dist}));
-}
-function cartCount(){return S.cart.reduce(function(s,i){return s+i[1]},0)}
 function hm(min){var m=((min%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 var NOW=10*60+6;
 function itemsText(items){return items.map(function(i){return DM[i[0]].n+' ×'+i[1]}).join(', ')}
@@ -247,16 +242,16 @@ function fold(s){return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ
 
 /* ================= HELPERS ================= */
 var V={},ACT={},INP={},LAY={};
+var ORDN=193;
 function pill(t,c){return '<span class="pill '+(c||'mute')+'">'+t+'</span>'}
 function stPill(st){return st===-1?pill('Đã hủy','bad'):pill(ST[st],STC[st])}
 function ph(eye,title,right){return '<div class="ph"><div class="grow"><div class="cap">'+eye+'</div><h1 class="h1">'+title+'</h1></div>'+(right||'')+'</div>'}
 function roleOf(k){return k.indexOf('b-')===0?'branch':(k.indexOf('a-')===0?'admin':'customer')}
 function isCustomerAuthenticated(){return document.body.dataset.customerAuthenticated==='true'}
-function requiresCustomerLogin(k){return ['account','orders','cart','checkout','dispatch','tracking'].indexOf(k)!==-1}
+function requiresCustomerLogin(k){return ['account','orders','cart','checkout'].indexOf(k)!==-1}
 function oBy(no){return orders.filter(function(o){return o.no===no})[0]}
 function loadCls(p){return p>=.9?'bad':(p>=.75?'warn':'ok')}
 function branchOpt(sel,all){return (all?'<option value="all"'+(sel==='all'?' selected':'')+'>Tất cả chi nhánh</option>':'')+BR.map(function(b){return '<option value="'+b.id+'"'+(sel===b.id?' selected':'')+'>'+b.id+' · '+b.n+'</option>'}).join('')}
-var PAYL={cod:'Tiền mặt',qr:'Chuyển khoản',momo:'Ví MoMo',card:'Thẻ ngân hàng'};
 var toastT;
 function toast(m){var t=$('#toast');t.innerHTML='<div class="toast">'+esc(m)+'</div>';clearTimeout(toastT);toastT=setTimeout(function(){t.innerHTML=''},2600)}
 function gateMatrix(res){
@@ -269,7 +264,6 @@ function dishCard(d){
   var n=dishBranches(d.id),off=n===0;
   return '<article class="dish'+(off?' off':'')+'" data-act="dish" data-id="'+d.id+'" tabindex="0"><div class="art">'+art(d.id)+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div><div class="db"><div class="dn">'+esc(d.n)+'</div><div class="ds">'+esc(d.sub)+'</div><div class="dr"><span class="price">'+money(d.p)+'</span>'+(off?pill('Tạm hết','bad'):'<button class="btn sm" data-act="add" data-id="'+d.id+'">+ Thêm</button>')+'</div><div class="av"><span class="dot'+(n<3?' warn':'')+(off?' bad':'')+'"></span>'+(off?'Hết ở mọi chi nhánh':'Còn tại '+n+'/5 chi nhánh')+'</div></div></article>';
 }
-function cartAdd(id,q){var l=S.cart.filter(function(i){return i[0]===id})[0];if(l)l[1]=clamp(l[1]+q,1,20);else S.cart.push([id,q])}
 function advance(o,who){
   if(o.st<0||o.st>=5)return false;
   o.st++;var b=BM[o.br];
@@ -312,15 +306,12 @@ function devUpd(){
   d.hidden=false;d.innerHTML='<b>URL</b> GET '+v.dj[0]+'<br><b>Template</b> templates/'+v.dj[1]+'<br><b>View</b> '+v.dj[2]+'<br><b>CSS</b> static/css/mq.css (token + Bootstrap override)';
 }
 function setHash(){try{var h=S.key+(S.par?'.'+S.par:'');if(location.hash!=='#'+h)history.replaceState(null,'','#'+h)}catch(e){}}
-function stopDisp(){clearTimeout(dispT);dispT=null}
-var dispT=null;
 function go(k,par){
   if(requiresCustomerLogin(k)&&!isCustomerAuthenticated()){
     window.location.assign(document.body.dataset.signinUrl||'/customer/signin/');
     return;
   }
   if(roleOf(k)!==PAGE_ROLE)return;
-  if(k!=='dispatch')stopDisp();
   S.key=k;S.par=par==null?null:par;S.layer=null;
   if(k==='dish'){S.dq=1;S.dnote=''}
   render({top:true});setHash();
@@ -353,5 +344,5 @@ function fromHash(){
 function initApp(){
   S.key=PAGE_HOME;S.par=null;
   if(!fromHash())setHash();render({top:true});
-  window.addEventListener('hashchange',function(){var h=(location.hash||'').slice(1),cur=S.key+(S.par?'.'+S.par:'');if(h!==cur){if(fromHash()){stopDisp();S.layer=null;render({top:true})}else setHash()}});
+  window.addEventListener('hashchange',function(){var h=(location.hash||'').slice(1),cur=S.key+(S.par?'.'+S.par:'');if(h!==cur){if(fromHash()){S.layer=null;render({top:true})}else setHash()}});
 }

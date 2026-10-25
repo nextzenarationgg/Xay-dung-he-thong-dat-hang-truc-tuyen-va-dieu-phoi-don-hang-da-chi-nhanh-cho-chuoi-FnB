@@ -115,8 +115,6 @@ PAGE_CONFIG = {
     'dish': ('prototype/pages/dish.html', 'customer'),
     'cart': ('prototype/pages/cart.html', 'customer'),
     'checkout': ('prototype/pages/checkout.html', 'customer'),
-    'dispatch': ('prototype/pages/dispatch.html', 'customer'),
-    'tracking': ('prototype/pages/tracking.html', 'customer'),
     'orders': ('prototype/pages/orders.html', 'customer'),
     'offers': ('prototype/pages/offers.html', 'customer'),
     'account': ('prototype/pages/account.html', 'customer'),

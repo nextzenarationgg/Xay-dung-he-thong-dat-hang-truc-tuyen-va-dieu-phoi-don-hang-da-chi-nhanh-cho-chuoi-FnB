@@ -3,7 +3,7 @@
 var $=function(s,r){return (r||document).querySelector(s)};
 var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var cat=function(){return '<svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cat"/></svg>'};
-var AREAS=['Phường Thạch Khôi','Phường Hải Tân','Phường Lê Thanh Nghị','Phường Tứ Minh','Phường Nam Đồng'];
+var AREAS=['Quận Cầu Giấy','Quận Ba Đình','Quận Từ Liêm','Quận Đống Đa','Quận Thanh Xuân'];
 var S={tab:document.body.dataset.authTab||'login'};
 var HEAD={
  login:['Chào mừng trở lại','Về lại <span class="it">bếp của bạn</span>','Đăng nhập để đặt món, theo dõi đơn và dùng mã giảm giá đã lưu.'],
@@ -22,7 +22,7 @@ function left(){
   '<div class="auth-intro"><div class="cap">'+h[0]+'</div><h1 class="auth-h">'+h[1]+'</h1><p class="auth-intro-copy">'+h[2]+'</p></div>'+
   '<div class="emb"><div class="disc"></div><div class="cat">'+cat()+'</div><svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="rp" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#rp" textLength="556" lengthAdjust="spacing">MIÊU QUÁN · ĐÚNG BẾP · ĐÚNG GIỜ · ĐIỀU PHỐI THÔNG MINH · HẢI PHÒNG ·</textPath></text></svg><div class="stamp">Điều phối<br>tự động</div>'+
   '</div>'+
-  '<div class="facts"><div><div class="num">5</div><div class="d">chi nhánh tại Hải Phòng</div></div><div><div class="num">2,4 s</div><div class="d">chốt bếp cho mỗi đơn</div></div><div><div class="num">14</div><div class="d">món cơm, mỳ, bún, nem</div></div></div></aside>';
+  '<div class="facts"><div><div class="num">5</div><div class="d">chi nhánh tại Hà Nội</div></div><div><div class="num">2,4 s</div><div class="d">chốt bếp cho mỗi đơn</div></div><div><div class="num">14</div><div class="d">món cơm, mỳ, bún, nem</div></div></div></aside>';
 }
 function tabs(){
   if(S.tab==='forgot')return '';
@@ -41,7 +41,7 @@ function loginForm(){
   '<div class="or"><span class="cap">hoặc</span></div><div class="row social-buttons"><button type="button" class="btn ghost grow">Google</button><button type="button" class="btn ghost grow">Zalo</button></div></form>';
 }
 function regForm(){
-  var area='<select id="rarea" class="in"><option value="">Chọn phường của bạn</option>'+AREAS.map(function(a,i){return '<option value="'+i+'">'+a+'</option>'}).join('')+'</select>';
+  var area='<select id="rarea" class="in"><option value="">Chọn quận của bạn</option>'+AREAS.map(function(a,i){return '<option value="'+i+'">'+a+'</option>'}).join('')+'</select>';
   var csrf=$('#csrf-token input[name="csrfmiddlewaretoken"]');
   return '<form action="'+esc(document.body.dataset.signinUrl)+'" method="post" novalidate class="col register-form">'+
   '<input type="hidden" name="csrfmiddlewaretoken" value="'+esc(csrf?csrf.value:'')+'"><input type="hidden" name="action" value="register">'+
