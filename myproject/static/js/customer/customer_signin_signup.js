@@ -33,7 +33,7 @@ function loginForm(){
   return '<form action="'+esc(document.body.dataset.signinUrl)+'" method="post" novalidate class="col login-form">'+
   '<input type="hidden" name="csrfmiddlewaretoken" value="'+esc(csrf?csrf.value:'')+'">'+
   '<input type="hidden" name="action" value="login">'+
-  fld('lid','Tên đăng nhập, email hoặc số điện thoại','text',{attr:'name="username" autocomplete="username"',ph:'khoi.nguyen@example.vn'})+
+  fld('lid','Tên đăng nhập, email hoặc số điện thoại','text',{attr:'name="username" autocomplete="username"',ph:'duyanh.hoang@example.vn'})+
   fld('lpw','Mật khẩu','password',{attr:'name="password" autocomplete="current-password"',ph:'Nhập mật khẩu'})+
   '<div class="row login-options"><label class="chk"><input id="lrem" type="checkbox" checked><span>Ghi nhớ trong 30 ngày</span></label><button type="button" class="lnk" data-act="tab" data-t="forgot">Quên mật khẩu?</button></div>'+
   '<p class="hint auth-error" id="login-error" role="alert" hidden></p>'+
@@ -45,8 +45,8 @@ function regForm(){
   var csrf=$('#csrf-token input[name="csrfmiddlewaretoken"]');
   return '<form action="'+esc(document.body.dataset.signinUrl)+'" method="post" novalidate class="col register-form">'+
   '<input type="hidden" name="csrfmiddlewaretoken" value="'+esc(csrf?csrf.value:'')+'"><input type="hidden" name="action" value="register">'+
-  fld('rname','Họ và tên','text',{attr:'name="full_name" autocomplete="name" required',ph:'Nguyễn Minh Khôi'})+
-  '<div class="f2">'+fld('rphone','Số điện thoại','tel',{attr:'name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]*" required',ph:'0912 345 658'})+fld('rmail','Email','email',{attr:'name="email" autocomplete="email" required',ph:'ban@example.vn'})+'</div>'+
+  fld('rname','Họ và tên','text',{attr:'name="full_name" autocomplete="name" required',ph:'Hoàng Duy Anh'})+
+  '<div class="f2">'+fld('rphone','Số điện thoại','tel',{attr:'name="phone" autocomplete="tel" inputmode="numeric" pattern="[0-9]*" required',ph:'0912 345 658'})+fld('rmail','Email','email',{attr:'name="email" autocomplete="email" required',ph:'duyanh.hoang@example.vn'})+'</div>'+
   fld('rpw','Mật khẩu','password',{attr:'name="password" autocomplete="new-password" required',ph:'Tối thiểu 8 ký tự, có chữ và số',extra:'<div class="segs strength-meter" id="strength" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="hint" id="strtxt">Mật khẩu chưa nhập</div>'})+
   fld('rpw2','Nhập lại mật khẩu','password',{attr:'name="password_confirmation" autocomplete="new-password" required',ph:'Nhập lại mật khẩu'})+
   '<div class="fld"><label for="rarea">Khu vực giao hàng chính</label>'+area+'<div id="brhint"></div></div>'+
@@ -55,7 +55,7 @@ function regForm(){
 }
 function forgotForm(){
   return '<form novalidate class="col forgot-form"><div class="cap">Đặt lại mật khẩu</div>'+
-  fld('fmail','Email đã đăng ký','email',{attr:'autocomplete="email"',ph:'ban@example.vn'})+
+  fld('fmail','Email đã đăng ký','email',{attr:'autocomplete="email"',ph:'duyanh.hoang@example.vn'})+
   '<button class="btn terra blk submit-auth" type="submit">Gửi liên kết đặt lại</button><button type="button" class="btn ghost blk" data-act="tab" data-t="login">← Quay lại đăng nhập</button><p class="hint">Giao diện minh họa; chưa kết nối chức năng gửi email.</p></form>';
 }
 function render(){

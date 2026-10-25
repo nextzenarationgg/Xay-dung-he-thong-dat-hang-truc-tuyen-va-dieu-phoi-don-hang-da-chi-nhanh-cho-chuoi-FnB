@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>&#272;&#259;ng nh&#7853;p Mi&#234;u Qu&#225;n</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@1,500;1,700&display=swap">
+<link rel="stylesheet" href="{% static 'css/shared/base.css' %}">
 <link rel="stylesheet" href="{% static 'css/customer/customer_signin_signup.css' %}">
 </head>
 <body data-auth-error="{{ auth_error|default:'' }}" data-auth-tab="{{ auth_tab|default:'login' }}" data-signin-url="{% url 'customer_signin_signup' %}">
