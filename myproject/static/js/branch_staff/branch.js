@@ -1,7 +1,7 @@
 'use strict';
 PAGE_ROLE='branch';PAGE_HOME='b-dash';
 /* ================= BRANCH MODULE ================= */
-var branchData=null,branchOrders=[],branchOrdersError='';
+var branchData=null,branchOrders=[],branchOrdersError='',branchUIReady=false,branchPollInProgress=false,branchPollErrorNotified=false,branchActionPending=false,branchActionVersion=0;
 function branchRequest(url,method,data){
   var options={method:method,credentials:'same-origin',headers:{Accept:'application/json'}};
   if(method!=='GET'){
@@ -81,14 +81,43 @@ function branchOrderPage(){
     '<div class="split"><section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Mã đơn</th><th>Thời gian</th><th>Khách</th><th>Món</th><th class="tr">Tổng</th><th>Trạng thái</th></tr></thead><tbody>'+list+'</tbody></table></div></section>'+detail+'</div>';
 }
 function branchAction(url,data,successMessage){
+  branchActionPending=true;
+  branchActionVersion++;
   branchRequest(url,'POST',data).then(function(){
     toast(successMessage);
     return loadBranchOrders();
-  }).then(function(){render()}).catch(function(error){
+  }).then(function(){branchActionPending=false;render()}).catch(function(error){
+    branchActionPending=false;
     toast(error.message||'Không thể cập nhật đơn hàng.');
     loadBranchOrders().then(function(){render()});
   });
 }
+function pollBranchOrders(){
+  if(!branchUIReady||document.hidden||branchPollInProgress||branchActionPending)return;
+  branchPollInProgress=true;
+  var actionVersion=branchActionVersion;
+  var previous=JSON.stringify([branchData,branchOrders,branchShippers,branchOrdersError]);
+  branchRequest('/api/branch/orders/','GET').then(function(payload){
+    if(actionVersion!==branchActionVersion)return;
+    branchData=payload.branch;
+    branchOrders=payload.orders;
+    branchShippers=payload.shippers;
+    branchOrdersError='';
+    branchPollErrorNotified=false;
+    var current=JSON.stringify([branchData,branchOrders,branchShippers,branchOrdersError]);
+    if(previous!==current&&['b-dash','b-orders','b-ship'].indexOf(S.key)>-1)render();
+  }).catch(function(error){
+    if(!branchPollErrorNotified){
+      toast('Không thể tự cập nhật đơn hàng: '+(error.message||'Lỗi kết nối.'));
+      branchPollErrorNotified=true;
+      console.error('Không thể tự cập nhật đơn hàng chi nhánh.',error);
+    }
+  }).then(function(){branchPollInProgress=false});
+}
+setInterval(pollBranchOrders,5000);
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden)pollBranchOrders();
+});
 function sideBranch(){
   var b=BM[S.br],nw=branchOrders.filter(function(order){return order.status==='pending'||order.status==='confirmed'}).length,rd=branchOrders.filter(function(order){return order.status==='ready'}).length;
   var branchLabel=app.getAttribute('data-branch-name');
@@ -211,4 +240,4 @@ ACT.bassign=function(d){
 };
 
 
-loadBranchOrders().then(function(){initApp()});
+loadBranchOrders().then(function(){initApp();branchUIReady=true});

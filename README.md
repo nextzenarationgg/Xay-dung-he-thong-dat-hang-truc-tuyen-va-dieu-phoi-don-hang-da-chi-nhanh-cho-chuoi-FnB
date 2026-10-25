@@ -206,6 +206,8 @@ Các API khách hàng hiện có:
 
 Đơn mới vào hộp đơn chung của các chi nhánh. Nhân viên đã được gán `BranchMembership` có thể xem đơn chờ; chi nhánh nào nhận trước sẽ được gán đơn đó. Chỉ chi nhánh đã nhận mới được chuyển trạng thái theo thứ tự `Đã xác nhận` → `Đang chuẩn bị` → `Sẵn sàng giao`. Sau đó chi nhánh chọn shipper thuộc chính chi nhánh; đơn chuyển sang `Đang giao`, rồi nhân viên xác nhận `Hoàn thành`. Các trạng thái và shipper được lưu trong database.
 
+Khi giao diện chi nhánh đang mở và tab trình duyệt hiển thị, danh sách đơn tự đồng bộ mỗi 5 giây; khi quay lại tab, giao diện kiểm tra đơn ngay.
+
 - `GET /api/branch/orders/`: danh sách đơn chờ chung và đơn của chi nhánh đang đăng nhập.
 - `POST /api/branch/orders/<code>/claim/`: nhận một đơn chờ; yêu cầu đăng nhập bằng tài khoản nhân viên chi nhánh.
 - `POST /api/branch/orders/<code>/status/`: chuyển đơn sang `preparing` hoặc `ready`; chỉ chi nhánh sở hữu đơn được cập nhật.
