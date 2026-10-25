@@ -121,7 +121,7 @@ document.addEventListener('visibilitychange',function(){
 function sideBranch(){
   var b=BM[S.br],nw=branchOrders.filter(function(order){return order.status==='pending'||order.status==='confirmed'}).length,rd=branchOrders.filter(function(order){return order.status==='ready'}).length;
   var branchLabel=app.getAttribute('data-branch-name');
-  return '<aside class="side"><div class="sh"><div class="cap">Bảng điều khiển chi nhánh</div>'+(branchLabel?'<div class="branch-name">CN '+esc(branchLabel)+'</div>':'<select id="brsel" data-in="brsel" aria-label="Chọn chi nhánh">'+branchOpt(S.br)+'</select>')+'</div>'+
+  return '<aside class="side"><div class="sh"><div class="cap">Bảng điều khiển chi nhánh</div>'+(branchLabel?'<div class="branch-name">MIÊU QUÁN '+esc(branchLabel.toLocaleUpperCase('vi-VN'))+'</div>':'<select id="brsel" data-in="brsel" aria-label="Chọn chi nhánh">'+branchOpt(S.br)+'</select>')+'</div>'+
   sideNav([['b-dash','Tổng quan chi nhánh','grid'],['b-orders','Đơn hàng','box',nw||''],['b-menu','Thực đơn chi nhánh','dish'],['b-inv','Kho hàng','store'],['b-ship','Giao hàng','truck',rd||'']],S.key)+
   '<div class="tog"><button class="sw'+(b.accepting?' on':'')+'" data-act="accept" data-id="'+b.id+'" aria-label="Nhận đơn" aria-pressed="'+b.accepting+'"></button><span>'+(b.accepting?'Đang nhận đơn':'Tạm ngưng nhận đơn')+'</span></div></aside>';
 }
@@ -170,9 +170,10 @@ ACT.bstatus=function(d){
 /* ---- branch menu ---- */
 V['b-menu']={dj:['/chi-nhanh/thuc-don/','branch/menu_availability.html','BranchMenuView + POST /api/branch-menu/<dish>/'],html:function(){
   var b=BM[S.br],q=fold(S.bmq.trim()),l=D.filter(function(d){return !q||fold(d.n).indexOf(q)>-1});
+  var branchLabel=app.getAttribute('data-branch-name')||b.n;
   var cnt={on:0,low:0,off:0};D.forEach(function(d){cnt[d.global?AV[b.id][d.id]:'off']++});
   var seg=function(d,v,t){var cur=AV[b.id][d.id]===v;return '<button class="'+(cur?'on':'')+'" data-act="avset" data-id="'+d.id+'" data-v="'+v+'"'+(d.global?'':' disabled')+'>'+t+'</button>'};
-  return ph('Chi nhánh '+b.id+' · '+esc(b.n),'Thực đơn <span class="it">chi nhánh</span>')+
+  return ph('CHI NHÁNH '+esc(branchLabel.toLocaleUpperCase('vi-VN')),'Thực đơn <span class="it">chi nhánh</span>')+
   '<div class="bento" style="margin-bottom:22px"><div class="plate s3"><div class="kpi"><span class="cap">Đang bán</span><span class="num">'+cnt.on+'</span></div></div><div class="plate s3"><div class="kpi"><span class="cap">Sắp hết</span><span class="num">'+cnt.low+'</span></div></div><div class="plate s3"><div class="kpi"><span class="cap">Hết hàng</span><span class="num">'+cnt.off+'</span></div></div>'+
   '<div class="plate sunk s3"><div class="cap">Hai lớp trạng thái</div><p style="font-size:12.5px;margin-top:6px"><b>Toàn chuỗi</b> do quản trị đặt. <b>Tại chi nhánh</b> do bếp quản lý. Món bị tắt ở đây sẽ bị loại khi điều phối cho bếp này.</p></div></div>'+
   '<div class="fld" style="max-width:340px;margin-bottom:16px"><label for="bmq">Tìm món</label><input id="bmq" class="in" type="search" data-in="bmq" value="'+esc(S.bmq)+'" placeholder="Tên món…"></div>'+
@@ -186,8 +187,9 @@ ACT.avset=function(d){AV[S.br][d.id]=d.v;toast(DM[d.id].n+' tại '+BM[S.br].n+'
 function stepOf(u){return {kg:1,'hộp':5,'lọ':5,'bìa':10,'quả':12,'cái':50}[u]||1}
 V['b-inv']={dj:['/chi-nhanh/kho/','branch/inventory.html','InventoryListView + POST /kho/<id>/adjust/'],html:function(){
   var b=BM[S.br],q=fold(S.binvQ.trim()),all=INV[b.id],low=invLow(b.id);
+  var branchLabel=app.getAttribute('data-branch-name')||b.n;
   var l=all.filter(function(r){return !q||fold(r.n).indexOf(q)>-1});
-  return ph('Chi nhánh '+b.id+' · '+all.length+' nguyên liệu','Kho <span class="it">hàng</span>')+
+  return ph('CHI NHÁNH '+esc(branchLabel.toLocaleUpperCase('vi-VN'))+' · '+all.length+' nguyên liệu','Kho <span class="it">hàng</span>')+
   (low.length?'<div class="plate" style="margin-bottom:20px;border-color:var(--bad)"><div class="row"><b style="color:var(--bad)">Cảnh báo tồn kho thấp</b><span class="dim" style="font-size:13.5px">'+low.map(function(r){return esc(r.n)}).join(', ')+'</span></div></div>':'')+
   '<div class="fld" style="max-width:340px;margin-bottom:16px"><label for="iq">Tìm nguyên liệu</label><input id="iq" class="in" type="search" data-in="binvq" value="'+esc(S.binvQ)+'" placeholder="Gạo, xá xíu, mỳ…"></div>'+
   '<section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Nguyên liệu</th><th class="tr">Tồn</th><th>Đơn vị</th><th class="tr">Tối thiểu</th><th style="min-width:140px">Mức tồn</th><th>Trạng thái</th><th>Điều chỉnh</th></tr></thead><tbody>'+
