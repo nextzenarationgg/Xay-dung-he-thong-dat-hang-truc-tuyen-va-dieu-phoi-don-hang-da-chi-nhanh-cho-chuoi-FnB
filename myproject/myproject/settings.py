@@ -148,3 +148,8 @@ MAILERS = {
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+# Thêm vào cuối settings.py
+GOGODUK_API_KEY = 'gdk_test_PenhnBaG3t-l1Oq8HRz0ikEU' 
+import os
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

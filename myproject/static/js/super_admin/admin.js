@@ -113,8 +113,11 @@ V['a-prod']={dj:['/quan-tri/mon-an/','admin/products.html','ProductAdminView + C
   return ph('Món ăn · '+D.length+' món · '+CATS.length+' danh mục','Danh mục <span class="it">toàn chuỗi</span>')+
   '<div class="bento"><section class="plate s3"><div class="cap" style="margin-bottom:8px">Danh mục</div><div class="cats" style="display:flex;flex-direction:column"><button class="chip'+(S.aPc==='all'?' on':'')+'" style="margin-bottom:6px;text-align:left" data-act="apc" data-c="all">Tất cả<span class="n">'+D.length+'</span></button>'+
   CATS.map(function(c){return '<div class="row" style="flex-wrap:nowrap;margin-bottom:6px"><button class="chip grow'+(S.aPc===c[0]?' on':'')+'" style="text-align:left" data-act="apc" data-c="'+c[0]+'">'+c[1]+'<span class="n">'+D.filter(function(d){return d.c===c[0]}).length+'</span></button><button class="sw'+(S.catHide[c[0]]?'':' on')+'" data-act="chide" data-c="'+c[0]+'" aria-label="Hiển thị danh mục '+c[1]+'"></button></div>'}).join('')+'</div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Công tắc: hiển thị danh mục trên thực đơn khách.</p></section>'+
-  '<section class="plate s9 tight"><div class="row" style="padding:6px 8px"><div class="fld grow" style="max-width:320px"><label for="pq">Tìm món</label><input id="pq" class="in" type="search" data-in="apq" value="'+esc(S.apq)+'" placeholder="Tên món…"></div></div><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá (đ)</th><th>Bán toàn chuỗi</th><th>Chi nhánh đang bán</th></tr></thead><tbody>'+
-  l.map(function(d){return '<tr><td><div class="row" style="flex-wrap:nowrap"><div class="art" style="width:52px;height:52px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+art(d.id)+'</div><div><b class="nm">'+esc(d.n)+'</b><div class="sub">'+esc(d.sub)+'</div></div></div></td><td>'+CATN[d.c]+'</td><td><input class="in" style="width:104px;padding:7px 8px" type="number" step="1000" min="0" value="'+d.p+'" data-in="price" data-id="'+d.id+'" aria-label="Giá '+esc(d.n)+'"></td><td><button class="sw'+(d.global?' on':'')+'" data-act="gtoggle" data-id="'+d.id+'" aria-label="Bán toàn chuỗi '+esc(d.n)+'"></button></td><td class="mono">'+dishBranches(d.id)+' / 5</td></tr>'}).join('')+'</tbody></table></div></section>'+
+  '<section class="plate s9 tight"><div class="row" style="padding:6px 8px"><div class="fld grow" style="max-width:320px"><label for="pq">Tìm món</label><input id="pq" class="in" type="search" data-in="apq" value="'+esc(S.apq)+'" placeholder="Tên món…"></div></div><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá (đ)</th><th>Bán toàn chuỗi</th><th>Chi nhánh đang bán</th><th>Thao tác</th></tr></thead><tbody>'+
+  l.map(function(d){
+    // Thêm nút Sửa ở đây
+    return '<tr><td><div class="row" style="flex-wrap:nowrap"><div class="art" style="width:52px;height:52px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+ (d.image_url ? '<img src="'+d.image_url+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : art(d.id)) +'</div><div><b class="nm">'+esc(d.n)+'</b><div class="sub">'+esc(d.sub)+'</div></div></div></td><td>'+CATN[d.c]+'</td><td><input class="in" style="width:104px;padding:7px 8px" type="number" step="1000" min="0" value="'+d.p+'" data-in="price" data-id="'+d.id+'" aria-label="Giá '+esc(d.n)+'"></td><td><button class="sw'+(d.global?' on':'')+'" data-act="gtoggle" data-id="'+d.id+'" aria-label="Bán toàn chuỗi '+esc(d.n)+'"></button></td><td class="mono">'+dishBranches(d.id)+' / 5</td><td><button class="btn sm ghost" data-act="admin-edit-product" data-code="'+d.id+'">Sửa</button></td></tr>'
+  }).join('')+'</tbody></table></div></section>'+
   '<section class="plate s12 sunk"><div class="cap" style="margin-bottom:10px">Thêm món mới</div><div class="row" style="align-items:flex-end"><div class="fld grow" style="min-width:200px"><label for="nn">Tên món</label><input id="nn" class="in" placeholder="Ví dụ: Cơm thố gà xối mỡ"></div><div class="fld"><label for="np">Giá (đ)</label><input id="np" class="in" type="number" step="1000" value="55000" style="width:130px"></div><div class="fld"><label for="nc">Danh mục</label><select id="nc" class="in">'+CATS.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>'}).join('')+'</select></div><button class="btn terra" data-act="adddish">Thêm món</button></div></section></div>';
 }};
 INP.apq=function(v){S.apq=v;render()};
@@ -241,5 +244,148 @@ INP.sbasket=function(v){S.sampleI=+v;render()};INP.saddr=function(v){S.sampleAdd
 ACT.cfgreset=function(){Object.keys(RULES0).forEach(function(k){RULES[k]=RULES0[k]});toast('Đã khôi phục cấu hình mặc định');render()};
 ACT.cfgsave=function(){toast('Đã lưu: khoảng cách '+RULES.wd+', tải '+RULES.wl+', chuẩn bị '+RULES.wp+'. Áp dụng cho đơn mới.')};
 
+/* ================= ADMIN: CHỈNH SỬA MÓN ĂN (MODAL) ================= */
+ACT['admin-edit-product'] = function(d) {
+  var code = d.code;
+  var modalHtml = `
+    <div id="edit-product-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:white;border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px;position:relative;">
+        <button id="close-modal" style="position:absolute;top:15px;right:15px;background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+        <h2 style="margin-top:0;margin-bottom:20px;">Chỉnh sửa món ăn (Toàn hệ thống)</h2>
+        
+        <form id="edit-product-form" onsubmit="event.preventDefault();">
+          <div class="fld">
+            <label>Tên món ăn</label>
+            <input type="text" id="ep-name" class="in" style="width:100%;border:1px solid #ddd;padding:10px;border-radius:6px;" required>
+          </div>
+          
+          <div class="fld" style="margin-top:15px;">
+            <label>Ảnh món ăn (Tùy chọn)</label>
+            <input type="file" id="ep-image" accept="image/*" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+          </div>
+
+          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+          
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h3 style="margin:0;font-size:16px;">Định lượng nguyên liệu (1 phần)</h3>
+            <button type="button" class="btn sm terra" onclick="adminAddRecipeRow()">+ Thêm NVL</button>
+          </div>
+          <div id="ep-recipes-container" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+          <div style="margin-top:30px;text-align:right;">
+            <button type="button" class="btn ghost" onclick="document.getElementById('edit-product-modal').remove()">Hủy</button>
+            <button type="button" class="btn terra" id="save-product-btn" onclick="adminSaveProduct('${code}')">Lưu thay đổi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  document.getElementById('close-modal').onclick = function() {
+    document.getElementById('edit-product-modal').remove();
+  };
+
+  fetch('/api/branch/products/' + code + '/update/', { credentials: 'same-origin' })
+  .then(r => r.json())
+  .then(function(data) {
+    if(data.error) throw new Error(data.error);
+    document.getElementById('ep-name').value = data.name;
+    var container = document.getElementById('ep-recipes-container');
+    container.innerHTML = '';
+    
+    if (data.recipes && data.recipes.length > 0) {
+      data.recipes.forEach(function(r) { adminAddRecipeRow(r.name, r.qty, r.unit); });
+    } else {
+      adminAddRecipeRow('', '', '');
+    }
+  }).catch(function(err) {
+    toast('Lỗi tải thông tin món: ' + err.message);
+    document.getElementById('edit-product-modal').remove();
+  });
+};
+
+function adminAddRecipeRow(name = '', qty = '', unit = '') {
+  var container = document.getElementById('ep-recipes-container');
+  var div = document.createElement('div');
+  div.className = 'recipe-row';
+  div.style.display = 'flex';
+  div.style.gap = '10px';
+  div.style.alignItems = 'center';
+
+  div.innerHTML = `
+    <input type="text" class="in recipe-name" value="${name}" placeholder="Tên NVL (VD: Thịt bò)" style="flex:2;padding:8px;border:1px solid #ddd;border-radius:6px;">
+    <input type="number" class="in recipe-qty" value="${qty}" step="0.001" min="0" placeholder="SL" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;">
+    <input type="text" class="in recipe-unit" value="${unit}" placeholder="ĐV (kg...)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;">
+    <button type="button" class="btn sm ghost" style="color:red;padding:8px;" onclick="this.parentElement.remove()">Xóa</button>
+  `;
+  container.appendChild(div);
+}
+
+function adminSaveProduct(code) {
+  var btn = document.getElementById('save-product-btn');
+  btn.innerText = 'Đang lưu...';
+  btn.disabled = true;
+
+  var formData = new FormData();
+  formData.append('name', document.getElementById('ep-name').value);
+  
+  var fileInput = document.getElementById('ep-image');
+  if (fileInput.files.length > 0) {
+    formData.append('image', fileInput.files[0]);
+  }
+
+  // Tìm CSRF token từ thẻ input (đảm bảo trong admin.html có {% csrf_token %})
+  var csrf = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  var headers = { 'X-CSRFToken': csrf ? csrf.value : '' };
+
+  fetch('/api/branch/products/' + code + '/update/', {
+    method: 'POST',
+    headers: headers,
+    body: formData
+  })
+  .then(r => {
+    if (!r.ok) {
+       return r.text().then(text => { throw new Error("Lỗi Server: " + text.substring(0, 100)); });
+    }
+    return r.json();
+  })
+  .then(data => {
+    if (data.error) throw new Error(data.error);
+    
+    var recipes = [];
+    document.querySelectorAll('#ep-recipes-container .recipe-row').forEach(function(row) {
+      var name = row.querySelector('.recipe-name').value.trim();
+      var qty = row.querySelector('.recipe-qty').value;
+      var unit = row.querySelector('.recipe-unit').value.trim();
+      if (name && qty > 0 && unit) {
+        recipes.push({ name: name, qty: qty, unit: unit });
+      }
+    });
+
+    return fetch('/api/branch/products/' + code + '/recipe/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf ? csrf.value : ''
+      },
+      body: JSON.stringify({ recipes: recipes })
+    }).then(r => r.json());
+  })
+  .then(data => {
+    if (data.error) throw new Error(data.error);
+    toast('Đã lưu thay đổi món ăn!');
+    document.getElementById('edit-product-modal').remove();
+    
+    setTimeout(() => location.reload(), 800);
+  })
+  .catch(err => {
+    console.error("Lỗi:", err);
+    toast('Lỗi: ' + err.message);
+    btn.innerText = 'Lưu thay đổi';
+    btn.disabled = false;
+  });
+}
 
 initApp();

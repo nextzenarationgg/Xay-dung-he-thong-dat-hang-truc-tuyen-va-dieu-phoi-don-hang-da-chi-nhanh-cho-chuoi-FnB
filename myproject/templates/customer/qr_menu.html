@@ -1,0 +1,62 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Gọi món tại bàn</title>
+  <link rel="stylesheet" href="{% static 'css/shared/base.css' %}">
+  <style>
+    body { background: #F1E7D3; padding-bottom: 80px; }
+    .qr-header { background: #c0392b; color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 100; }
+    .qr-header h1 { margin: 0; font-size: 20px; }
+    .qr-header p { margin: 5px 0 0; font-size: 14px; opacity: 0.9; }
+    .qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; }
+    .qr-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+    .qr-card img { width: 100%; height: 120px; object-fit: cover; }
+    .qr-card-info { padding: 10px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+    .qr-card-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; line-height: 1.2; }
+    .qr-card-price { color: #c0392b; font-weight: bold; font-size: 15px; }
+    .qr-add-btn { background: #c0392b; color: white; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .qr-cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; z-index: 100; }
+    .qr-cart-bar button { background: #c0392b; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
+    .cart-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; display: none; }
+    .cart-panel { position: fixed; bottom: -100%; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px; z-index: 201; transition: bottom 0.3s; max-height: 80vh; overflow-y: auto; }
+    .cart-panel.open { bottom: 0; }
+  </style>
+</head>
+<body data-qr="{{ qr_code }}">
+  
+  <div class="qr-header">
+    <h1 id="table-title">Đang tải...</h1>
+    <p id="branch-title"></p>
+  </div>
+
+  <div class="qr-grid" id="qr-products"></div>
+
+  <!-- Thanh giỏ hàng dưới cùng -->
+  <div class="qr-cart-bar">
+    <div>
+      <div style="font-size: 12px; color: #666;">Tạm tính</div>
+      <div style="font-size: 18px; font-weight: bold; color: #c0392b;" id="cart-total">0đ</div>
+    </div>
+    <button onclick="openCart()">Xem giỏ hàng (<span id="cart-count">0</span>)</button>
+  </div>
+
+  <!-- Lớp phủ giỏ hàng -->
+  <div class="cart-overlay" id="cart-overlay" onclick="closeCart()"></div>
+  <div class="cart-panel" id="cart-panel">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+      <h2 style="margin: 0; font-size: 20px;">Giỏ hàng của bạn</h2>
+      <button onclick="closeCart()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+    </div>
+    <div id="cart-items"></div>
+    <div style="margin-top: 15px;">
+      <textarea id="order-note" class="in" placeholder="Ghi chú cho bếp (VD: ít cay, không hành...)" style="width: 100%; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 15px;"></textarea>
+    </div>
+    <button onclick="submitOrder(this)" style="background: #c0392b; color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-size: 16px; font-weight: bold;">Gửi đơn xuống bếp</button>
+  </div>
+
+  <script src="{% static 'js/customer/qr-menu.js' %}"></script>
+</body>
+</html>

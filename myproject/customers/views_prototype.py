@@ -135,3 +135,8 @@ def signin_signup(request):
         "customer/customer_signin_signup.html",
         {"auth_error": auth_error, "auth_tab": auth_tab},
     )
+from django.shortcuts import render
+
+def qr_menu(request, qr_code):
+    # Chỉ cần render template, JS sẽ tự lấy dữ liệu qua API
+    return render(request, 'customer/qr_menu.html', {'qr_code': str(qr_code)})

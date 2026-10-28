@@ -2,6 +2,7 @@
 /* ================= CUSTOMER MODULE ================= */
 var dbOrders=[];
 var cartSummary={count:0,subtotal:0};
+
 function apiRequest(url,method,data){
   var options={method:method,credentials:'same-origin',headers:{Accept:'application/json'}};
   if(method!=='GET'){
@@ -25,6 +26,7 @@ function apiRequest(url,method,data){
     });
   });
 }
+
 var cartQueue=Promise.resolve();
 function cartRequest(url,method,data){
   var operation=cartQueue.then(function(){return apiRequest(url,method,data)});
@@ -57,6 +59,7 @@ function custNav(){
   if(!authenticated)it=it.filter(function(x){return x[0]!=='orders'&&x[0]!=='offers'});
   return '<nav class="cnav" aria-label="Điều hướng khách hàng">'+it.map(function(x){return '<button class="'+(g===x[0]?'on':'')+'" data-act="go" data-k="'+x[0]+'">'+x[1]+'</button>'}).join('')+(authenticated?'<button class="cartb'+(g==='cart'?' on':'')+'" data-act="go" data-k="cart">Giỏ hàng <span class="badge">'+cartSummary.count+'</span></button>':'')+'</nav>';
 }
+
 ACT.add=function(d){
   if(!isCustomerAuthenticated()){go('account');return}
   cartRequest('/api/cart/items/'+encodeURIComponent(d.id)+'/','POST',{quantity:1}).then(function(payload){syncCart(payload);toast('Đã thêm '+DM[d.id].n);render()}).catch(reportApiError);
@@ -83,13 +86,12 @@ V.home={dj:['/','customer/home.html','HomeView.as_view()'],html:function(){
   var res=evalBranches(items,S.addr),win=res.filter(function(r){return r.ok})[0];
   var near=BR.map(function(b){return {b:b,d:ADDR[S.addr].d[b.id]}}).sort(function(a,b){return a.d-b.d});
   var ring='<svg class="ring" viewBox="0 0 200 200" aria-hidden="true"><defs><path id="rp" d="M100 100m-90 0a90 90 0 1 1 180 0a90 90 0 1 1-180 0"/></defs><text><textPath href="#rp" textLength="556" lengthAdjust="spacing">MIÊU QUÁN · ĐÚNG BẾP · ĐÚNG GIỜ · ĐIỀU PHỐI THÔNG MINH · HÀ NỘI ·</textPath></text></svg>';
-  var tk=win?'':'';
   var hero='<section class="hero"><div><div class="cap" style="margin-bottom:18px">Chuỗi bếp Hà Nội · 5 chi nhánh · Thứ Hai 12.10.2026</div>'+
    '<h1 class="hero-h"><span class="l1">Miêu Quán <b>–</b></span>Điều phối <span class="it u">thông minh,</span> đúng bếp phù hợp</h1>'+
    '<p class="lead" style="margin:22px 0 26px">Mỗi đơn được kiểm tra vùng giao, món còn hàng, tải bếp và thời gian chuẩn bị trong vài giây, rồi giao cho bếp phù hợp nhất với địa chỉ của bạn.</p>'+
    '<form class="searchbar" data-form="hsearch" role="search"><input id="hq" type="search" placeholder="Tìm cơm thố, nem nướng, mỳ cay, bún đậu…" aria-label="Tìm món"><button class="btn terra" type="submit" data-act="hsearch">Tìm món<span>&nbsp;→</span></button></form>'+
    '<div class="row" style="margin-top:16px">'+['Cơm thố','Nem nướng','Mỳ cay','Bún đậu'].map(function(t){return '<button class="chip" data-act="hchip" data-q="'+t+'">'+t+'</button>'}).join('')+'</div></div>'+
-   '<div class="emb"><div class="disc"></div><div class="cat">'+cat()+'</div>'+ring+'<div class="stamp">Điều phối<br>đơn hàng siêu tốc</div>'+tk+'</div></section>';
+   '<div class="emb"><div class="disc"></div><div class="cat">'+cat()+'</div>'+ring+'<div class="stamp">Điều phối<br>đơn hàng siêu tốc</div></div></section>';
   var cats='<section class="sec"><div class="sech"><h2 class="h2">Chọn theo <span class="it">khẩu vị</span></h2><hr class="foil"></div><div class="catstrip">'+CATS.map(function(c){var first=D.filter(function(d){return d.c===c[0]})[0];return '<button data-act="hcat" data-c="'+c[0]+'"><div class="art">'+art(first.id)+'</div><div class="cl"><b>'+c[1]+'</b><span class="cap">'+D.filter(function(d){return d.c===c[0]}).length+' món</span></div></button>'}).join('')+'</div></section>';
   var nearH='<section class="sec"><div class="sech"><h2 class="h2">Chi nhánh <span class="it">gần bạn</span></h2><hr class="foil"></div><div class="bento"><div class="plate s5"><div class="fld"><label for="addrsel">Giao đến</label><select id="addrsel" class="in" data-in="addr">'+Object.keys(ADDR).map(function(k){return '<option value="'+k+'"'+(S.addr===k?' selected':'')+'>'+ADDR[k].l+' · '+ADDR[k].a+'</option>'}).join('')+'</select></div><p class="dim" style="margin-top:14px;font-size:13.5px">Khoảng cách tính theo đường đi từ chi nhánh đến địa chỉ giao. Hệ thống vẫn tự chọn bếp, danh sách này giúp bạn biết bếp nào đang gần.</p></div>'+
    '<div class="plate s7 flat"><div class="brlist">'+near.map(function(x){var b=x.b,p=liveLoad(b)/b.cap,st=!b.open?['Đóng cửa','mute']:(!b.accepting?['Tạm ngưng','warn']:(p*100>RULES.maxLoad?['Quá tải','bad']:['Đang mở','ok']));
@@ -190,40 +192,342 @@ ACT.usev=function(d){applyV(d.c)};
 /* ================= CUSTOMER: CHECKOUT ================= */
 V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:function(){
   if(!S.cart.length)return V.cart.html();
-  var addrs=S.saved.map(function(k){var a=ADDR[k],md=Math.min.apply(null,BR.map(function(b){return a.d[b.id]}));return '<button class="'+(S.addr===k?'on':'')+'" data-act="caddr" data-k2="'+k+'"><b>'+esc(a.l)+'</b><span>'+esc(a.a)+'</span><span>Bếp gần nhất cách '+dec(md)+' km</span></button>'}).join('');
+  if(!S.co)S.co={};
+  if(S.co.address===undefined)S.co.address='';
+  if(S.co.searchQuery===undefined)S.co.searchQuery='';
+  if(S.co.suggestions===undefined)S.co.suggestions=[];
+
   var pay=[['cod','Tiền mặt','Trả khi nhận hàng'],['qr','Chuyển khoản QR','Mô phỏng, không trừ tiền thật'],['momo','Ví MoMo','Mô phỏng, không trừ tiền thật'],['card','Thẻ ngân hàng','Mô phỏng, không trừ tiền thật']].map(function(p){return '<button class="'+(S.co.pay===p[0]?'on':'')+'" data-act="cpay" data-p2="'+p[0]+'"><b>'+p[1]+'</b><span>'+p[2]+'</span></button>'}).join('');
+
   return ph('Xác nhận đơn hàng','Giao tới <span class="it">đâu?</span>')+
   '<div class="two"><section class="col" style="gap:26px">'+
   '<div><div class="cap" style="margin-bottom:10px">Người nhận</div><div class="f2"><div class="fld"><label for="cn">Họ và tên</label><input id="cn" class="in" data-in="co_name" value="'+esc(S.co.name)+'" autocomplete="name"></div><div class="fld"><label for="cp">Số điện thoại</label><input id="cp" class="in" data-in="co_phone" value="'+esc(S.co.phone)+'" inputmode="tel" autocomplete="tel"></div></div></div>'+
-  '<div><div class="cap" style="margin-bottom:10px">Địa chỉ giao hàng</div><div class="pay" style="grid-template-columns:1fr">'+addrs+'</div></div>'+
+
+  '<div><div class="cap" style="margin-bottom:10px">Địa chỉ giao hàng <span style="color:#c0392b">*</span></div>'+
+    '<div style="position:relative">'+
+      '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#999;pointer-events:none;font-size:15px">🔍</span>'+
+      '<input id="addr-search" class="in" placeholder="Nhập địa chỉ, ví dụ: 12 Phố Huế, Hà Nội" autocomplete="off" style="padding-left:38px" value="'+esc(S.co.searchQuery||'')+'">'+
+      '<span id="addr-search-loading" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#999">Đang tìm...</span>'+
+      '<div id="addr-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:8px;margin-top:4px;z-index:2000;max-height:340px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.08)"></div>'+
+    '</div>'+
+    '<div id="addr-display" style="margin-top:10px;padding:10px 12px;background:#f0f9f0;border:1px solid #c8e6c8;border-radius:8px;font-size:13.5px;'+(S.co.address?'':'display:none')+'">'+
+      '<div style="display:flex;align-items:flex-start;gap:8px">'+
+        '<span style="color:#2e7d32;font-size:16px;flex:none">✓</span>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-weight:600;color:#1b5e20;font-size:12px;margin-bottom:2px">Địa chỉ giao hàng</div>'+
+          '<div id="checkout-address" style="color:#333">'+esc(S.co.address||'')+'</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="row" style="margin:12px 0 8px;gap:8px;flex-wrap:wrap">'+
+      '<span class="dim" style="font-size:12.5px;flex:1;min-width:180px">Hoặc click lên bản đồ / kéo ghim để chọn vị trí chính xác.</span>'+
+      '<button class="chip" type="button" data-act="usemylocation">📌 Vị trí hiện tại</button>'+
+    '</div>'+
+    '<div id="checkout-map" style="height:340px;border-radius:12px;overflow:hidden;border:1px solid rgba(0,0,0,.12);position:relative;z-index:1"></div>'+
+  '</div>'+
+
   '<div class="fld"><label for="cnote">Ghi chú cho đơn</label><textarea id="cnote" class="in" data-in="co_note" placeholder="Ví dụ: gọi trước khi đến, để hàng ở bảo vệ">'+esc(S.co.note)+'</textarea></div>'+
   '<div><div class="cap" style="margin-bottom:10px">Phương thức thanh toán</div><div class="pay">'+pay+'</div></div></section>'+
   '<aside class="col"><div class="plate"><div class="cap" style="margin-bottom:8px">Đơn của bạn</div>'+S.cart.map(function(i){return '<div class="il"><span>'+esc(DM[i[0]].n)+' <span class="dim">× '+i[1]+'</span></span><b class="mono">'+money(DM[i[0]].p*i[1])+'</b></div>'}).join('')+
   '<div class="tot" style="margin-top:8px"><span class="dim">Tạm tính</span><b class="mono">'+money(cartSummary.subtotal)+'</b></div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Phí giao, ưu đãi và tổng tiền sẽ do máy chủ xác nhận.</p></div>'+
-  '<div class="plate ink"><div class="cap">Ghi chú cho giai đoạn này</div><h3 class="h3" style="margin:8px 0">Đơn sẽ được lưu trên hệ thống.</h3><p style="font-size:13.5px;opacity:.85">Phân công chi nhánh và theo dõi giao hàng sẽ được bổ sung ở bước tiếp theo. Các lựa chọn chuyển khoản, ví và thẻ hiện chỉ là mô phỏng, chưa xử lý thanh toán thật.</p></div>'+
   '<button class="btn terra blk" data-act="place" style="padding:16px">Xác nhận đặt hàng →</button>'+
   '</aside></div>';
 }};
-INP.co_name=function(v){S.co.name=v};INP.co_phone=function(v){S.co.phone=v};INP.co_note=function(v){S.co.note=v};
-ACT.caddr=function(d){S.addr=d.k2;render()};
+INP.co_name=function(v){S.co.name=v};
+INP.co_phone=function(v){S.co.phone=v};
+INP.co_note=function(v){S.co.note=v};
 ACT.cpay=function(d){S.co.pay=d.p2;render()};
+
+/* --- Bind search input --- */
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='addr-search'){
+    _onAddrSearchInput(e.target.value);
+  }
+});
+document.addEventListener('keydown',function(e){
+  if(e.target&&e.target.id==='addr-search'){
+    if(e.key==='Enter'&&S.co&&S.co.suggestions&&S.co.suggestions.length>0){
+      e.preventDefault();
+      ACT.mapsugg({i:0});
+    }else if(e.key==='Escape'){
+      if(S.co){S.co.suggestions=[];_renderSuggestions();}
+    }
+  }
+});
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#addr-search')&&!e.target.closest('#addr-suggestions')){
+    if(S.co&&S.co.suggestions&&S.co.suggestions.length>0){
+      S.co.suggestions=[];
+      _renderSuggestions();
+    }
+  }
+});
+
+/* --- GoGoDuk: Suggest + Resolve --- */
+var _gogodukCache = {};
+
+function _onAddrSearchInput(v){
+  if(!S.co)S.co={};
+  S.co.searchQuery=v;
+  if(S._addrSearchTimeout)clearTimeout(S._addrSearchTimeout);
+  if(!v||v.trim().length<2){
+    S.co.suggestions=[];
+    _updateSearchLoading(false);
+    _renderSuggestions();
+    return;
+  }
+  _updateSearchLoading(true);
+  var query=v.trim();
+  S._addrSearchTimeout=setTimeout(function(){_searchAddressGogoDuk(query)},350);
+}
+
+function _updateSearchLoading(loading){
+  var el=document.getElementById('addr-search-loading');
+  if(el)el.style.display=loading?'inline':'none';
+}
+
+function _renderSuggestions(){
+  var container=document.getElementById('addr-suggestions');
+  if(!container)return;
+  if(!S.co||!S.co.suggestions||!S.co.suggestions.length){
+    container.style.display='none';
+    container.innerHTML='';
+    return;
+  }
+  container.innerHTML=S.co.suggestions.map(function(s,i){
+    return '<div data-act="mapsugg" data-i="'+i+'" style="padding:12px 14px;border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer;font-size:13.5px;transition:background .12s" onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'\'">'+
+        '<div style="display:flex;gap:8px;align-items:flex-start">'+
+          '<span style="color:#c0392b;font-size:14px;flex:none;margin-top:1px">📍</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-weight:600;color:#222;line-height:1.3">'+esc(s.title)+'</div>'+
+            (s.subtitle?'<div style="font-size:12px;color:#888;margin-top:3px;line-height:1.3">'+esc(s.subtitle)+'</div>':'')+
+          '</div>'+
+        '</div>'+
+      '</div>';
+  }).join('');
+  container.style.display='block';
+}
+
+function _searchAddressGogoDuk(query){
+  var url = '/api/gogoduk/suggest/?input=' + encodeURIComponent(query);
+  fetch(url, { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!S.co || S.co.searchQuery !== query) return;
+      var rawPreds = data.predictions || (data.result && data.result.predictions) || [];
+      var predictions = rawPreds.map(function (p) {
+        return {
+          placeId: p.placeId,
+          title: p.mainText || p.text,
+          subtitle: p.secondaryText || '',
+          fullAddress: p.text,
+          lat: null,
+          lng: null
+        };
+      });
+      S.co.suggestions = predictions;
+      _updateSearchLoading(false);
+      _renderSuggestions();
+      if (predictions.length === 0) {
+        toast('Không tìm thấy địa chỉ. Thử nhập tên đường hoặc quận.');
+      }
+    })
+    .catch(function (err) {
+      console.error('[GoGoDuk suggest] error:', err);
+      if (!S.co || S.co.searchQuery !== query) return;
+      S.co.suggestions = [];
+      _updateSearchLoading(false);
+      _renderSuggestions();
+      toast('Lỗi kết nối dịch vụ địa chỉ. Vui lòng chọn trên bản đồ.');
+    });
+}
+
+function _resolvePlace(placeId) {
+  if (_gogodukCache[placeId]) return Promise.resolve(_gogodukCache[placeId]);
+  var url = '/api/gogoduk/resolve/?id=' + encodeURIComponent(placeId);
+  return fetch(url, { credentials: 'same-origin' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var result = data.result || data.data || data;
+      var coords = {
+        lat: result.lat || result.latitude,
+        lon: result.lon || result.lng || result.longitude,
+        address: result.address || result.name || ''
+      };
+      if (coords.lat != null && coords.lon != null) {
+        _gogodukCache[placeId] = coords;
+      }
+      return coords;
+    });
+}
+
+/* Hàm reverse geocode chuẩn xác (dùng BigDataCloud để không bao giờ lỗi) */
+function _reverseGeocode(lat, lng) {
+  var key = lat.toFixed(4) + ',' + lng.toFixed(4);
+  if (_gogodukCache[key]) return Promise.resolve(_gogodukCache[key]);
+
+  // BigDataCloud: Miễn phí, không cần API key, tốc độ nhanh, hỗ trợ tiếng Việt
+  var bdcUrl = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lng + '&localityLanguage=vi';
+  
+  return fetch(bdcUrl)
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var parts = [];
+      if (data.locality) parts.push(data.locality);
+      if (data.city && data.city !== data.locality) parts.push(data.city);
+      if (data.principalSubdivision && data.principalSubdivision !== data.city) parts.push(data.principalSubdivision);
+      
+      if (parts.length === 0) throw new Error('no bdc address');
+      
+      var addr = parts.join(', ');
+      _gogodukCache[key] = addr;
+      return addr;
+    })
+    .catch(function () {
+      // Dự phòng nếu BDC lỗi: Gọi qua proxy Nominatim của Django
+      return fetch('/api/nominatim/reverse/?lat=' + lat + '&lon=' + lng, { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data && data.display_name) {
+             _gogodukCache[key] = data.display_name;
+             return data.display_name;
+          }
+          throw new Error('no nominatim address');
+        })
+        .catch(function () { return null; });
+    });
+}
+
+ACT.mapsugg=function(d){
+  if(!S.co||!S.co.suggestions)return;
+  var s=S.co.suggestions[+d.i];
+  if(!s)return;
+  
+  if(s.lat!=null&&s.lng!=null){
+    _applySuggestion(s);
+    return;
+  }
+
+  _updateSearchLoading(true);
+  _resolvePlace(s.placeId)
+    .then(function(coords){
+      if(!coords||coords.lat==null){
+        toast('Không lấy được tọa độ. Vui lòng chọn trên bản đồ.');
+        _updateSearchLoading(false);
+        return;
+      }
+      s.lat=coords.lat;
+      s.lng=coords.lon;
+      s.fullAddress=coords.address||s.fullAddress;
+      _applySuggestion(s);
+      _updateSearchLoading(false);
+    })
+    .catch(function(){
+      toast('Lỗi khi lấy tọa độ. Vui lòng chọn trên bản đồ.');
+      _updateSearchLoading(false);
+    });
+};
+
+function _applySuggestion(s){
+  S.co.lat=s.lat;
+  S.co.lng=s.lng;
+  S.co.address=s.fullAddress;
+  S.co.searchQuery=s.title;
+  S.co.suggestions=[];
+  if(checkoutMapInstance){
+    checkoutMapInstance.setView([s.lat,s.lng],16);
+    _ensureMarker(s.lat,s.lng);
+    setTimeout(function(){checkoutMapInstance.invalidateSize();},150);
+  }
+  render();
+}
+
+function _updateAddressSpan(addr){
+  S.co.address=addr;
+  var wrapper=document.getElementById('addr-display');
+  if(wrapper)wrapper.style.display='block';
+  var el=document.getElementById('checkout-address');
+  if(el)el.textContent=addr;
+}
+
+/* --- Nút Vị trí hiện tại --- */
+ACT.usemylocation=function(){
+  if(!navigator.geolocation){toast('Trình duyệt không hỗ trợ định vị');return}
+
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    toast('Tính năng định vị chỉ hoạt động trên HTTPS hoặc localhost');
+    return;
+  }
+
+  toast('Đang lấy vị trí...');
+  _updateAddressSpan('Đang xác định địa chỉ...');
+  var inputEl = document.getElementById('addr-search');
+  if (inputEl) inputEl.value = 'Đang lấy vị trí...';
+
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+    if(lat<8||lat>24||lng<102||lng>110){
+      toast('Vị trí hiện tại nằm ngoài Việt Nam');
+      _updateAddressSpan('');
+      if (inputEl) inputEl.value = '';
+      return;
+    }
+    S.co.lat=lat; S.co.lng=lng;
+    
+    if(checkoutMapInstance){
+      checkoutMapInstance.setView([lat,lng],16);
+      _ensureMarker(lat,lng);
+      setTimeout(function(){ checkoutMapInstance.invalidateSize(); }, 150);
+    }
+    
+    _updateAddressSpan('Đang tìm địa chỉ cho vị trí này...');
+    if (inputEl) inputEl.value = 'Đang tìm địa chỉ...';
+    
+    _reverseGeocode(lat,lng).then(function(addr){
+      var finalAddr = addr || 'Vị trí trên bản đồ';
+      
+      S.co.address = finalAddr;
+      S.co.searchQuery = finalAddr;
+      
+      _updateAddressSpan(finalAddr);
+      if (inputEl) inputEl.value = finalAddr;
+      
+      toast('Đã chọn vị trí hiện tại');
+    }).catch(function(){
+      var fallbackAddr = 'Vị trí trên bản đồ';
+      S.co.address = fallbackAddr;
+      S.co.searchQuery = fallbackAddr;
+      _updateAddressSpan(fallbackAddr);
+      if (inputEl) inputEl.value = fallbackAddr;
+    });
+  }, function(err){
+    var msg = 'Không lấy được vị trí.';
+    if(err.code === 1) msg = 'Bạn đã từ chối quyền truy cập vị trí.';
+    else if(err.code === 2) msg = 'Không thể xác định vị trí.';
+    else if(err.code === 3) msg = 'Hết thời gian chờ.';
+    toast(msg);
+    _updateAddressSpan('');
+    if (inputEl) inputEl.value = '';
+  }, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+};
+
 ACT.place=function(){
   if(!S.co.name.trim()){toast('Vui lòng nhập họ và tên người nhận');return}
   if(!/^0\d{9,10}$/.test(S.co.phone.replace(/\s/g,''))){toast('Số điện thoại chưa đúng, cần 10 hoặc 11 chữ số bắt đầu bằng 0');return}
   if(!S.cart.length){toast('Giỏ hàng đang trống');return}
-  var address=ADDR[S.addr];
-  if(!address){toast('Vui lòng chọn địa chỉ giao hàng');return}
+  if(!S.co.address||!S.co.address.trim()){toast('Vui lòng nhập hoặc chọn địa chỉ giao hàng');return}
+  if(S.co.lat==null||S.co.lng==null){toast('Vui lòng chọn vị trí giao hàng trên bản đồ');return}
   apiRequest('/api/orders/','POST',{
-    recipient_name:S.co.name,
-    recipient_phone:S.co.phone,
-    delivery_address:address.a,
-    note:S.co.note,
-    payment_method:S.co.pay,
-    voucher_code:S.voucher||''
+    recipient_name:S.co.name,recipient_phone:S.co.phone,
+    delivery_address:S.co.address,delivery_lat:S.co.lat,delivery_lng:S.co.lng,
+    note:S.co.note,payment_method:S.co.pay,voucher_code:S.voucher||''
   }).then(function(payload){
     dbOrders.unshift(payload.order);
     S.cart=[];cartSummary={count:0,subtotal:0};S.voucher=null;S.inote={};
-    toast('Đã tạo đơn hàng '+payload.order.code);
+    S.co.address='';S.co.searchQuery='';S.co.suggestions=[];
+    S.co.lat=null;S.co.lng=null;
+    var branchMsg=payload.order.branch_name?(' · Bếp: '+payload.order.branch_name):' · Đơn vào hàng chờ (ngoài bán kính 10km)';
+    toast('Đã tạo đơn hàng '+payload.order.code+branchMsg);
     go('orders');
   }).catch(reportApiError);
 };
@@ -290,7 +594,6 @@ ACT.sendrv=function(){
   var o=oBy(no);S.reviews.unshift({no:no,dish:DM[o.items[0][0]].n,star:S.rv.star,text:S.rv.text.trim(),date:'12.10.2026'});S.rv={star:5,text:'',no:''};toast('Cảm ơn bạn đã đánh giá');render();
 };
 
-
 var customerDataNode=document.getElementById('customer-data');
 if(customerDataNode){
   var customerData=JSON.parse(customerDataNode.textContent);
@@ -303,9 +606,7 @@ if(customerDataNode){
 
 S.cart=[];
 dbOrders=[];
-var startupRequests=[
-  apiRequest('/api/products/','GET')
-];
+var startupRequests=[apiRequest('/api/products/','GET')];
 if(isCustomerAuthenticated()){
   startupRequests.push(apiRequest('/api/cart/','GET'));
   startupRequests.push(apiRequest('/api/orders/','GET'));
@@ -321,3 +622,101 @@ Promise.all(startupRequests).then(function(results){
   reportApiError(error);
   initApp();
 });
+
+/* ================= LEAFLET MAP PICKER ================= */
+var checkoutMapInstance=null;
+var checkoutMarkerInstance=null;
+
+function destroyCheckoutMap(){
+  checkoutMarkerInstance=null;
+  if(checkoutMapInstance){checkoutMapInstance.remove();checkoutMapInstance=null}
+}
+
+function _ensureMarker(lat,lng){
+  if(!checkoutMapInstance)return;
+  if(checkoutMarkerInstance){
+    checkoutMarkerInstance.setLatLng([lat,lng]);
+  }else{
+    checkoutMarkerInstance=L.marker([lat,lng],{draggable:true}).addTo(checkoutMapInstance);
+    _bindMarkerEvents();
+  }
+}
+
+function _bindMarkerEvents(){
+  if(!checkoutMarkerInstance)return;
+  checkoutMarkerInstance.off('dragend');
+  checkoutMarkerInstance.on('dragend',function(e){
+    var ll=e.target.getLatLng();
+    S.co.lat=ll.lat;S.co.lng=ll.lng;
+    _updateAddressSpan('Đang tìm địa chỉ...');
+    _reverseGeocode(ll.lat,ll.lng).then(function(addr){
+      _updateAddressSpan(addr||('Vị trí đã chọn ('+ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+')'));
+    });
+  });
+}
+
+function initCheckoutMap(){
+  destroyCheckoutMap();
+  var mapEl=document.getElementById('checkout-map');
+  if(!mapEl||typeof L==='undefined')return;
+  if(mapEl._leaflet_id)return;
+
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  });
+
+  if(!S.co)S.co={};
+  var hasCoords=(S.co.lat!=null&&S.co.lng!=null);
+  var centerLat=hasCoords?S.co.lat:21.0285;
+  var centerLng=hasCoords?S.co.lng:105.8542;
+  
+  checkoutMapInstance=L.map('checkout-map',{zoomControl:true, attributionControl:false}).setView([centerLat,centerLng],hasCoords?16:13);
+  
+  // Máy chủ ảnh OpenStreetMap.DE (Miễn phí, không cần API key, không bị chặn)
+  L.tileLayer('https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png', {
+    subdomains: 'abc',
+    maxZoom: 19,
+    attribution: '© OpenStreetMap'
+  }).addTo(checkoutMapInstance);
+
+  L.control.attribution({ prefix: false, position: 'bottomright' }).addTo(checkoutMapInstance);
+
+  if(hasCoords){
+    checkoutMarkerInstance=L.marker([S.co.lat,S.co.lng],{draggable:true}).addTo(checkoutMapInstance);
+    _bindMarkerEvents();
+  }
+  
+  checkoutMapInstance.on('click',function(e){
+    S.co.lat=e.latlng.lat;S.co.lng=e.latlng.lng;
+    _ensureMarker(e.latlng.lat,e.latlng.lng);
+    _updateAddressSpan('Đang tìm địa chỉ...');
+    _reverseGeocode(e.latlng.lat,e.latlng.lng).then(function(addr){
+      _updateAddressSpan(addr||('Vị trí đã chọn ('+e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5)+')'));
+    });
+  });
+
+  setTimeout(function() {
+    if (checkoutMapInstance) {
+      checkoutMapInstance.invalidateSize();
+    }
+  }, 300);
+}
+
+function setupMapObserver(){
+  var target=document.getElementById('app')||document.body;
+  var observer=new MutationObserver(function(){
+    var mapEl=document.getElementById('checkout-map');
+    if(mapEl&&!mapEl._leaflet_id)initCheckoutMap();
+    else if(!mapEl&&checkoutMapInstance)destroyCheckoutMap();
+  });
+  observer.observe(target,{childList:true,subtree:true});
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',setupMapObserver);
+}else{
+  setupMapObserver();
+}

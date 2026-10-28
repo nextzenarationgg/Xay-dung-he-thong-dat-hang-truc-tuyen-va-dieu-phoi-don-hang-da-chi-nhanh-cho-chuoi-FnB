@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -6,7 +7,7 @@ from django.urls import reverse
 
 from accounts.models import BranchMembership
 from branches.models import Branch
-from .models import Cart, CartItem, Order, OrderItem, Product
+from .models import Cart, CartItem, DispatchLog, Order, OrderItem, Product
 
 User = get_user_model()
 
@@ -106,6 +107,8 @@ class CustomerOrderingApiTests(TestCase):
                 "recipient_name": "Nguyễn Minh",
                 "recipient_phone": "0912345678",
                 "delivery_address": "12 Phố Huế, Hà Nội",
+                "delivery_lat": 21.0280,
+                "delivery_lng": 105.8540,
                 "payment_method": "momo",
                 "note": "Gọi trước khi giao",
                 "voucher_code": "",
@@ -138,6 +141,8 @@ class CustomerOrderingApiTests(TestCase):
                 "recipient_name": "Nguyễn Minh",
                 "recipient_phone": "invalid",
                 "delivery_address": "12 Phố Huế, Hà Nội",
+                "delivery_lat": 21.0280,
+                "delivery_lng": 105.8540,
                 "payment_method": "cod",
             },
         )
@@ -431,3 +436,178 @@ class BranchOrderApiTests(TestCase):
         self.client.logout()
         anonymous = self.client.get(reverse("branch_order_list"))
         self.assertEqual(anonymous.status_code, 401)
+
+
+class DispatchIntegrationTests(TestCase):
+    """
+    Test điều phối tự động: khi tạo đơn có tọa độ, hệ thống tự chọn chi nhánh.
+
+    Công thức: Score = 0.35D + 0.30L + 0.20R + 0.15A
+    Bán kính: 10 km. Ngoài bán kính → branch=NULL, reason='no_candidate'.
+    """
+
+    def setUp(self):
+        self.customer = User.objects.create_user(
+            username="dispatch-customer",
+            password="test-password-123",
+            role="customer",
+        )
+        self.product = Product.objects.create(
+            code="dispatch-dish",
+            name="Món test điều phối",
+            category="com",
+            price=50000,
+        )
+        # Ba Đình: rating 4.5, capacity 15
+        self.branch_badinh = Branch.objects.create(
+            name="Ba Đình",
+            address="Ba Đình, Hà Nội",
+            is_active=True,
+            latitude=Decimal("21.034500"),
+            longitude=Decimal("105.814200"),
+            max_capacity=15,
+            is_accepting_orders=True,
+            rating=Decimal("4.50"),
+            rating_count=20,
+        )
+        # Cầu Giấy: rating 4.8, capacity 12 — cách Ba Đình ~1.6 km
+        self.branch_caugiay = Branch.objects.create(
+            name="Cầu Giấy",
+            address="Cầu Giấy, Hà Nội",
+            is_active=True,
+            latitude=Decimal("21.031300"),
+            longitude=Decimal("105.798800"),
+            max_capacity=12,
+            is_accepting_orders=True,
+            rating=Decimal("4.80"),
+            rating_count=35,
+        )
+        self.client.force_login(self.customer)
+
+    def _prepare_cart(self):
+        cart = Cart.objects.create(customer=self.customer)
+        CartItem.objects.create(cart=cart, product=self.product, quantity=2)
+
+    def _post_order(self, **overrides):
+        payload = {
+            "recipient_name": "Test Dispatch",
+            "recipient_phone": "0901234567",
+            "delivery_address": "Test, Hà Nội",
+            "delivery_lat": 21.0350,
+            "delivery_lng": 105.8150,
+            "payment_method": "cod",
+        }
+        payload.update(overrides)
+        return self.client.post(
+            reverse("order_list_create"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_assigns_nearest_branch_within_radius(self):
+        """Đơn @ Ba Đình → gán Ba Đình; DispatchLog có reason='ok', có score."""
+        self._prepare_cart()
+        response = self._post_order(delivery_lat=21.0350, delivery_lng=105.8150)
+
+        self.assertEqual(response.status_code, 201, response.content.decode())
+        order = Order.objects.get(code=response.json()["order"]["code"])
+        self.assertEqual(order.branch, self.branch_badinh)
+        self.assertEqual(order.status, Order.Status.PENDING)
+        self.assertIsNotNone(order.delivery_lat)
+        self.assertIsNotNone(order.delivery_lng)
+
+        log = DispatchLog.objects.get(order=order)
+        self.assertEqual(log.reason, "ok")
+        self.assertEqual(log.chosen_branch, self.branch_badinh)
+        self.assertGreater(float(log.score), 0)
+        self.assertIsNotNone(log.distance_km)
+
+    def test_assigns_closer_branch_when_two_in_radius(self):
+        """Đơn @ Cầu Giấy → gán Cầu Giấy, không phải Ba Đình (dù Ba Đình cũng trong 10 km)."""
+        self._prepare_cart()
+        response = self._post_order(delivery_lat=21.0310, delivery_lng=105.7980)
+
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get(code=response.json()["order"]["code"])
+        self.assertEqual(order.branch, self.branch_caugiay)
+
+    def test_rejects_missing_coordinates(self):
+        """Thiếu delivery_lat/lng → 400, không tạo đơn."""
+        self._prepare_cart()
+        payload = {
+            "recipient_name": "Test",
+            "recipient_phone": "0901234567",
+            "delivery_address": "Test",
+            "payment_method": "cod",
+        }
+        response = self.client.post(
+            reverse("order_list_create"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("vị trí", response.json()["error"].lower())
+        self.assertFalse(Order.objects.exists())
+
+    def test_rejects_coordinates_outside_vietnam(self):
+        """Tọa độ New York → 400."""
+        self._prepare_cart()
+        response = self._post_order(delivery_lat=40.7128, delivery_lng=-74.0060)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("phạm vi", response.json()["error"].lower())
+        self.assertFalse(Order.objects.exists())
+
+    def test_queues_when_no_branch_in_radius(self):
+        """Đơn @ TP.HCM, cách Hà Nội >1000 km → tạo thành công nhưng branch=NULL."""
+        self._prepare_cart()
+        response = self._post_order(
+            delivery_address="TP.HCM",
+            delivery_lat=10.7769,
+            delivery_lng=106.7009,
+        )
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get(code=response.json()["order"]["code"])
+        self.assertIsNone(order.branch)
+
+        log = DispatchLog.objects.get(order=order)
+        self.assertEqual(log.reason, "no_candidate")
+        self.assertIsNone(log.chosen_branch)
+
+    def test_full_capacity_branch_is_skipped(self):
+        """Ba Đình đầy tải (max_capacity=0) → đơn @ Ba Đình phải rơi về Cầu Giấy."""
+        self.branch_badinh.max_capacity = 0
+        self.branch_badinh.save()
+        self._prepare_cart()
+        response = self._post_order(delivery_lat=21.0350, delivery_lng=105.8150)
+
+        self.assertEqual(response.status_code, 201)
+        order = Order.objects.get(code=response.json()["order"]["code"])
+        # Cầu Giấy cách Ba Đình ~1.6 km, vẫn trong bán kính 10 km
+        self.assertEqual(order.branch, self.branch_caugiay)
+
+    def test_assigned_branch_can_claim_and_other_cannot(self):
+        """Sau khi dispatch gán Ba Đình, chỉ staff Ba Đình claim được; staff Cầu Giấy 409."""
+        self._prepare_cart()
+        response = self._post_order(delivery_lat=21.0350, delivery_lng=105.8150)
+        order = Order.objects.get(code=response.json()["order"]["code"])
+        self.assertEqual(order.branch, self.branch_badinh)
+
+        # Staff Ba Đình claim → OK
+        staff_badinh = User.objects.create_user(
+            username="dispatch-staff-badinh", role="branch_staff",
+        )
+        BranchMembership.objects.create(user=staff_badinh, branch=self.branch_badinh)
+        self.client.force_login(staff_badinh)
+        ok = self.client.post(reverse("claim_branch_order", args=[order.code]))
+        self.assertEqual(ok.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.CONFIRMED)
+
+        # Staff Cầu Giấy claim đơn đã CONFIRMED → 409
+        staff_caugiay = User.objects.create_user(
+            username="dispatch-staff-caugiay", role="branch_staff",
+        )
+        BranchMembership.objects.create(user=staff_caugiay, branch=self.branch_caugiay)
+        self.client.force_login(staff_caugiay)
+        losing = self.client.post(reverse("claim_branch_order", args=[order.code]))
+        self.assertEqual(losing.status_code, 409)
