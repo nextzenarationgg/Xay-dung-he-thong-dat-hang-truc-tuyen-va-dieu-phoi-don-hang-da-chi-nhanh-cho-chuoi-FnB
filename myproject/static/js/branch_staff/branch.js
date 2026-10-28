@@ -204,6 +204,7 @@ function sideBranch(){
     ['b-dash','Tổng quan','grid'],
     ['b-orders','Đơn giao hàng','box',nw||''],
     ['b-dine-in','Đơn tại bàn','list'],
+    ['b-history','Lịch sử đơn','list'], // <--- ĐÃ THÊM NÚT LỊCH SỬ VÀO ĐÂY
     ['b-tables','Quản lý bàn','store'],
     ['b-menu','Thực đơn','dish'],
     ['b-inv','Kho hàng','truck'],
@@ -273,9 +274,12 @@ V['b-history']={dj:['/api/branch/order-history/','branch/history.html','Lịch s
       return '<span class="pill bad" style="margin:2px;font-weight:bold">- '+i.total+' '+i.unit+' '+i.name+'</span>';
     }).join('');
 
+    // Xác định màu cho nhãn Giao hàng / Tại bàn
+    var typePill = order.type === 'Tại bàn' ? pill('Tại bàn', 'terra') : pill('Giao hàng', 'ok');
+
     return '<div class="plate" style="margin-bottom:16px">'+
       '<div class="row" style="border-bottom:1px solid #eee;padding-bottom:8px;margin-bottom:12px">'+
-        '<div class="grow"><b class="num">'+esc(order.code)+'</b> <span class="pill">'+esc(order.status)+'</span></div>'+
+        '<div class="grow"><b class="num">'+esc(order.code)+'</b> '+typePill+' <span class="pill">'+esc(order.status)+'</span></div>'+
         '<div class="mono dim" style="font-size:12px">'+esc(new Date(order.created_at).toLocaleString('vi-VN'))+'</div>'+
       '</div>'+
       '<div class="two" style="gap:20px">'+

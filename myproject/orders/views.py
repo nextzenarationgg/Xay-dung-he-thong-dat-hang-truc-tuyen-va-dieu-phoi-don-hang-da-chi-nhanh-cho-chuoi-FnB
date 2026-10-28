@@ -562,45 +562,73 @@ def branch_ingredient_detail(request, pk):
 @branch_api
 def branch_order_history(request):
     branch = request.branch_membership.branch
-    orders = Order.objects.filter(branch=branch).order_by('-created_at').prefetch_related('items')[:50]
     
-    data = []
-    for order in orders:
+    # Lấy đơn giao hàng và đơn tại bàn
+    delivery_orders = Order.objects.filter(branch=branch).prefetch_related('items')
+    dine_in_orders = DineInOrder.objects.filter(branch=branch).prefetch_related('items')
+    
+    history_data = []
+    
+    # 1. Xử lý đơn giao hàng
+    for order in delivery_orders:
         order_items = []
         total_ingredients = {}
         
         for item in order.items.all():
             item_ingredients = []
-            recipes = ProductIngredient.objects.filter(product=item.product)
+            if item.product:
+                recipes = ProductIngredient.objects.filter(product=item.product)
+                for recipe in recipes:
+                    deducted = float(recipe.quantity_per_portion * item.quantity)
+                    item_ingredients.append({"name": recipe.ingredient_name, "quantity": deducted, "unit": recipe.unit})
+                    key = f"{recipe.ingredient_name}_{recipe.unit}"
+                    if key not in total_ingredients:
+                        total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
+                    total_ingredients[key]["total"] += deducted
+                    
+            order_items.append({"name": item.product_name, "quantity": item.quantity, "ingredients": item_ingredients})
             
-            for recipe in recipes:
-                deducted = float(recipe.quantity_per_portion * item.quantity)
-                item_ingredients.append({
-                    "name": recipe.ingredient_name,
-                    "quantity": deducted,
-                    "unit": recipe.unit
-                })
-                
-                key = f"{recipe.ingredient_name}_{recipe.unit}"
-                if key not in total_ingredients:
-                    total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
-                total_ingredients[key]["total"] += deducted
-                
-            order_items.append({
-                "name": item.product_name,
-                "quantity": item.quantity,
-                "ingredients": item_ingredients
-            })
-            
-        data.append({
+        history_data.append({
             "code": order.code,
+            "type": "Giao hàng",
             "created_at": order.created_at.isoformat(),
             "status": order.get_status_display(),
             "items": order_items,
             "total_ingredients": list(total_ingredients.values())
         })
         
-    return JsonResponse({"history": data})
+    # 2. Xử lý đơn tại bàn
+    for order in dine_in_orders:
+        order_items = []
+        total_ingredients = {}
+        
+        for item in order.items.all():
+            item_ingredients = []
+            if item.product:
+                recipes = ProductIngredient.objects.filter(product=item.product)
+                for recipe in recipes:
+                    deducted = float(recipe.quantity_per_portion * item.quantity)
+                    item_ingredients.append({"name": recipe.ingredient_name, "quantity": deducted, "unit": recipe.unit})
+                    key = f"{recipe.ingredient_name}_{recipe.unit}"
+                    if key not in total_ingredients:
+                        total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
+                    total_ingredients[key]["total"] += deducted
+                    
+            order_items.append({"name": item.product_name, "quantity": item.quantity, "ingredients": item_ingredients})
+            
+        history_data.append({
+            "code": f"Bàn {order.table.name} ({order.id})",
+            "type": "Tại bàn",
+            "created_at": order.created_at.isoformat(),
+            "status": order.get_status_display(),
+            "items": order_items,
+            "total_ingredients": list(total_ingredients.values())
+        })
+        
+    # Sắp xếp tất cả các đơn theo thời gian mới nhất
+    history_data.sort(key=lambda x: x["created_at"], reverse=True)
+    
+    return JsonResponse({"history": history_data[:50]})
 
 # ================= QUẢN LÝ BÀN (NHÂN VIÊN) =================
 @require_http_methods(["GET", "POST"])
