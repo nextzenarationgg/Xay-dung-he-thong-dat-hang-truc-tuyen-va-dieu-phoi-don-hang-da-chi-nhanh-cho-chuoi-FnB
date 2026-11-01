@@ -110,7 +110,8 @@ ACT.bopen=function(d){var b=BM[d.id];b.open=!b.open;toast(b.n+(b.open?': đã m�
 S.sampleI=0;S.aPc='all';
 V['a-prod']={dj:['/quan-tri/mon-an/','admin/products.html','ProductAdminView + CategoryAdminView (ImageField → MEDIA_ROOT)'],html:function(){
   var q=fold(S.apq.trim()),l=D.filter(function(d){return (S.aPc==='all'||d.c===S.aPc)&&(!q||fold(d.n).indexOf(q)>-1)});
-  return ph('Món ăn · '+D.length+' món · '+CATS.length+' danh mục','Danh mục <span class="it">toàn chuỗi</span>')+
+ return ph('Món ăn · '+D.length+' món · '+CATS.length+' danh mục','Danh mục <span class="it">toàn chuỗi</span>', 
+    '<button class="btn terra" data-act="open-add-product">+ Thêm món mới</button>')+
   '<div class="bento"><section class="plate s3"><div class="cap" style="margin-bottom:8px">Danh mục</div><div class="cats" style="display:flex;flex-direction:column"><button class="chip'+(S.aPc==='all'?' on':'')+'" style="margin-bottom:6px;text-align:left" data-act="apc" data-c="all">Tất cả<span class="n">'+D.length+'</span></button>'+
   CATS.map(function(c){return '<div class="row" style="flex-wrap:nowrap;margin-bottom:6px"><button class="chip grow'+(S.aPc===c[0]?' on':'')+'" style="text-align:left" data-act="apc" data-c="'+c[0]+'">'+c[1]+'<span class="n">'+D.filter(function(d){return d.c===c[0]}).length+'</span></button><button class="sw'+(S.catHide[c[0]]?'':' on')+'" data-act="chide" data-c="'+c[0]+'" aria-label="Hiển thị danh mục '+c[1]+'"></button></div>'}).join('')+'</div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Công tắc: hiển thị danh mục trên thực đơn khách.</p></section>'+
   '<section class="plate s9 tight"><div class="row" style="padding:6px 8px"><div class="fld grow" style="max-width:320px"><label for="pq">Tìm món</label><input id="pq" class="in" type="search" data-in="apq" value="'+esc(S.apq)+'" placeholder="Tên món…"></div></div><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá (đ)</th><th>Bán toàn chuỗi</th><th>Chi nhánh đang bán</th><th>Thao tác</th></tr></thead><tbody>'+
@@ -387,5 +388,209 @@ function adminSaveProduct(code) {
     btn.disabled = false;
   });
 }
+/* ================= MODAL THÊM MÓN ĂN MỚI ================= */
+/* ================= MODAL THÊM MÓN ĂN MỚI ================= */
+ACT['open-add-product'] = function() {
+  toast('Đang tải danh sách nguyên liệu...');
+  
+  fetch('/api/admin/ingredients/', { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      
+      var allIngredients = data.ingredients || [];
+      window.currentIngredientsList = allIngredients; // Lưu toàn cục để dùng cho autoFillUnit
+      
+      var catOptions = CATS.map(function(c) {
+          return '<option value="'+c[0]+'">'+c[1]+'</option>';
+      }).join('');
 
+      // Tạo datalist
+      var datalistHtml = '<datalist id="available-ingredients">';
+      allIngredients.forEach(function(ing) {
+          datalistHtml += '<option value="' + ing.name + '">' + ing.name + ' (' + ing.unit + ')</option>';
+      });
+      datalistHtml += '</datalist>';
+
+      var modalHtml = `
+        <div id="add-product-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px; backdrop-filter: blur(2px);">
+          ${datalistHtml}
+          <div style="background:var(--paper);color:var(--ink);border-radius:16px;width:100%;max-width:800px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,0.3); overflow:hidden;">
+            
+            <div class="row" style="padding:20px 24px; border-bottom:1px solid var(--edge); flex:none; background:var(--paper-2);">
+              <h3 class="h3" style="margin:0; flex:1;">Thêm món vào thực đơn</h3>
+              <button id="close-add-modal" style="background:none;border:none;color:var(--ink);font-size:28px;cursor:pointer;line-height:1;">&times;</button>
+            </div>
+
+            <div style="padding:24px; overflow-y:auto; flex:1; display:grid; grid-template-columns: 1fr 1.5fr; gap:24px;">
+              
+              <!-- CỘT TRÁI: ẢNH & GIÁ -->
+              <div>
+                <div style="width:100%; aspect-ratio:1/1; border:2px dashed var(--edge); border-radius:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; position:relative; background:#f9f9f9; cursor:pointer;" onclick="document.getElementById('ap-image').click()">
+                  <img id="ap-image-preview" style="width:100%; height:100%; object-fit:cover; display:none;">
+                  <div id="ap-image-placeholder" style="text-align:center; color:#999;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <div style="margin-top:8px; font-size:14px;">Tải ảnh lên</div>
+                  </div>
+                </div>
+                <input type="file" id="ap-image" accept="image/*" style="display:none;" onchange="previewProductImage(this)">
+                <div class="fld" style="margin-top:20px;">
+                  <label>Giá bán (VNĐ)</label>
+                  <input type="number" id="ap-price" class="in" style="width:100%; padding:10px; font-size:18px; font-weight:bold;" placeholder="VD: 55000" step="1000">
+                </div>
+              </div>
+
+              <!-- CỘT PHẢI: THÔNG TIN -->
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <div class="fld">
+                  <label>Tên món ăn</label>
+                  <input type="text" id="ap-name" class="in" style="width:100%; padding:10px; font-size:18px; font-weight:bold;" placeholder="VD: Bánh Mì Thịt Nướng">
+                </div>
+                
+                <div class="fld">
+                  <label>Danh mục</label>
+                  <select id="ap-cat" class="in" style="width:100%; padding:10px;">
+                    ${catOptions}
+                  </select>
+                </div>
+
+                <div class="fld">
+                  <label>Mô tả ngắn</label>
+                  <textarea id="ap-desc" class="in" rows="2" style="width:100%; padding:10px;" placeholder="Mô tả hương vị, thành phần..."></textarea>
+                </div>
+
+                <hr style="border:none; border-top:1px solid var(--edge); margin:4px 0;">
+                
+                <div>
+                  <div style="font-weight:bold; margin-bottom:12px;">Nguyên liệu (Định lượng 1 phần)</div>
+                  <div id="ap-recipes" style="display:flex; flex-direction:column; gap:10px;"></div>
+                  <button type="button" class="btn sm ghost" style="margin-top:12px;" onclick="addNewRecipeRow()">+ Thêm nguyên liệu</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" style="padding:16px 24px; border-top:1px solid var(--edge); justify-content:flex-end; gap:12px; flex:none; background:var(--paper-2);">
+              <button class="btn ghost" onclick="document.getElementById('add-product-modal').remove()">Hủy</button>
+              <button class="btn terra" id="btn-save-product" onclick="submitNewProduct()">Lưu món ăn</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      document.getElementById('close-add-modal').onclick = function() {
+        document.getElementById('add-product-modal').remove();
+      };
+      
+      // Khởi tạo 1 dòng nguyên liệu mặc định
+      addNewRecipeRow();
+    })
+    .catch(err => {
+      toast('Lỗi tải danh sách nguyên liệu: ' + err.message);
+    });
+};
+
+window.previewProductImage = function(input) {
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = document.getElementById('ap-image-preview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+      document.getElementById('ap-image-placeholder').style.display = 'none';
+    }
+    reader.readAsDataURL(input.files[0]);
+  }
+};
+
+window.addNewRecipeRow = function() {
+  var container = document.getElementById('ap-recipes');
+  var div = document.createElement('div');
+  div.className = 'recipe-row';
+  div.style.display = 'grid';
+  div.style.gridTemplateColumns = '2fr 1fr 1fr auto';
+  div.style.gap = '8px';
+  div.style.alignItems = 'center';
+
+  div.innerHTML = `
+    <input list="available-ingredients" class="in recipe-name" placeholder="Gõ hoặc chọn NVL..." style="width:100%; padding:8px;" oninput="autoFillUnit(this)">
+    <input type="number" class="in recipe-qty" step="0.001" min="0" placeholder="Số lượng" style="width:100%; padding:8px;">
+    <input type="text" class="in recipe-unit" placeholder="Đơn vị" style="width:100%; padding:8px;">
+    <button type="button" class="btn ghost" style="padding:8px; color:red;" onclick="this.parentElement.remove()">✕</button>
+  `;
+  container.appendChild(div);
+};
+
+// ĐÂY LÀ HÀM BẠN CẦN TÌM
+window.autoFillUnit = function(inputEl) {
+  var val = inputEl.value;
+  var unitInput = inputEl.parentElement.querySelector('.recipe-unit');
+  
+  if (window.currentIngredientsList) {
+      var matched = window.currentIngredientsList.find(function(ing) {
+          return ing.name.toLowerCase() === val.toLowerCase();
+      });
+      if (matched && matched.unit) {
+          unitInput.value = matched.unit;
+      }
+  }
+};
+
+window.submitNewProduct = function() {
+  var btn = document.getElementById('btn-save-product');
+  btn.innerText = 'Đang lưu...';
+  btn.disabled = true;
+
+  var name = document.getElementById('ap-name').value;
+  var cat = document.getElementById('ap-cat').value;
+  var price = document.getElementById('ap-price').value;
+  var desc = document.getElementById('ap-desc').value;
+  var imageFile = document.getElementById('ap-image').files[0];
+
+  if (!name || !price) {
+    toast('Vui lòng nhập tên và giá món ăn.');
+    btn.innerText = 'Lưu món ăn';
+    btn.disabled = false;
+    return;
+  }
+
+  var recipes = [];
+  document.querySelectorAll('#ap-recipes .recipe-row').forEach(function(row) {
+    var ingName = row.querySelector('.recipe-name').value.trim();
+    var qty = row.querySelector('.recipe-qty').value;
+    var unit = row.querySelector('.recipe-unit').value.trim();
+    if (ingName && qty > 0 && unit) {
+      recipes.push({ name: ingName, qty: parseFloat(qty), unit: unit });
+    }
+  });
+
+  var formData = new FormData();
+  formData.append('name', name);
+  formData.append('category', cat);
+  formData.append('price', price);
+  formData.append('description', desc);
+  formData.append('recipes', JSON.stringify(recipes));
+  if (imageFile) formData.append('image', imageFile);
+
+  var csrf = $('#admin-csrf-form input[name="csrfmiddlewaretoken"]');
+  var headers = { 'X-CSRFToken': csrf ? csrf.value : '' };
+
+  fetch('/api/admin/products/create/', {
+    method: 'POST',
+    headers: headers,
+    body: formData
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) throw new Error(data.error);
+    toast('Đã thêm món ăn mới!');
+    document.getElementById('add-product-modal').remove();
+    setTimeout(() => location.reload(), 800);
+  })
+  .catch(err => {
+    toast('Lỗi: ' + err.message);
+    btn.innerText = 'Lưu món ăn';
+    btn.disabled = false;
+  });
+};
 initApp();

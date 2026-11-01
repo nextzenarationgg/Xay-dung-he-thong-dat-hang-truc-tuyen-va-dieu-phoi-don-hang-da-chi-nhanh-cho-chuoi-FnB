@@ -1,10 +1,10 @@
 import json
 import re
 import os
+import secrets
 import requests
 from datetime import date
 from functools import wraps
-from django.contrib.auth.decorators import login_required
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -14,9 +14,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 
 from accounts.models import BranchMembership
-from branches.models import Branch, Ingredient
+from branches.models import Branch, Ingredient, PurchaseLog
 from orders.services.dispatch import is_valid_vn_coords, select_best_branch
 from .models import (
     Cart, CartItem, DispatchLog, Order, OrderItem, Product, ProductIngredient,
@@ -108,7 +109,7 @@ def product_list(request):
                     "category": product.category,
                     "price": product.price,
                     "description": product.description,
-                    "image_url": product.image.url if product.image else None, # THÊM DÒNG NÀY
+                    "image_url": product.image.url if product.image else None,
                 }
                 for product in products
             ]
@@ -479,7 +480,6 @@ def order_detail(request, code):
     )
     return JsonResponse({"order": order_payload(order)})
 
-
 # ================= QUẢN LÝ NGUYÊN VẬT LIỆU =================
 @require_http_methods(["GET", "POST"])
 @branch_api
@@ -495,7 +495,8 @@ def branch_ingredient_list(request):
                     "name": i.name, 
                     "unit": i.unit, 
                     "quantity": float(i.quantity), 
-                    "min_quantity": float(i.min_quantity)
+                    "min_quantity": float(i.min_quantity),
+                    "unit_price": float(i.unit_price) if i.unit_price is not None else 0
                 } for i in items
             ]
         })
@@ -557,13 +558,96 @@ def branch_ingredient_detail(request, pk):
         "quantity": float(item.quantity), "min_quantity": float(item.min_quantity)
     })
 
+# ================= XỬ LÝ LƯU KHO & LỊCH SỬ NHẬP HÀNG =================
+from decimal import Decimal
+
+@require_http_methods(["POST"])
+@branch_api
+def branch_inventory_save(request):
+    branch = request.branch_membership.branch
+    data, error = parse_json(request)
+    if error: return error
+    
+    items_data = data.get("items", [])
+    note = data.get("note", "")
+
+    if not items_data:
+        return JsonResponse({"error": "Không có dữ liệu thay đổi."}, status=400)
+
+    details = []
+    total_cost = Decimal(0)
+
+    try:
+        with transaction.atomic():
+            for item_data in items_data:
+                ing = get_object_or_404(Ingredient, pk=item_data["id"], branch=branch)
+                
+                # Ép kiểu về Decimal để tính toán
+                old_qty = Decimal(str(ing.quantity))
+                old_price = Decimal(str(ing.unit_price)) if ing.unit_price else Decimal(0)
+                action = item_data["action"]
+                qty = Decimal(str(item_data["qty"]))
+                new_price = Decimal(str(item_data.get("price", old_price)))
+
+                if action == "add":
+                    ing.quantity = old_qty + qty
+                    total_cost += qty * new_price
+                elif action == "sub":
+                    ing.quantity = max(Decimal(0), old_qty - qty)
+                    
+                ing.unit_price = new_price
+                ing.save()
+
+                details.append({
+                    "name": ing.name,
+                    "unit": ing.unit,
+                    "action": action,
+                    "qty_changed": float(qty),
+                    "old_qty": float(old_qty),
+                    "new_qty": float(ing.quantity),
+                    "old_price": float(old_price),
+                    "new_price": float(new_price)
+                })
+
+            code = f"NH-{timezone.localdate():%Y%m%d}-{secrets.token_hex(2).upper()}"
+            
+            PurchaseLog.objects.create(
+                branch=branch,
+                code=code,
+                note=note,
+                total_amount=total_cost,
+                details=details
+            )
+
+        return JsonResponse({"ok": True, "code": code})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": f"Lỗi lưu kho: {str(e)}"}, status=500)
+
+@require_http_methods(["GET"])
+@branch_api
+def branch_purchase_history(request):
+    branch = request.branch_membership.branch
+    logs = PurchaseLog.objects.filter(branch=branch).order_by('-created_at')[:100]
+    
+    data = []
+    for log in logs:
+        data.append({
+            "code": log.code,
+            "note": log.note,
+            "total_amount": float(log.total_amount),
+            "details": log.details,
+            "created_at": log.created_at.isoformat()
+        })
+    return JsonResponse({"history": data})
+
 # ================= LỊCH SỬ ĐƠN HÀNG CHI NHÁNH =================
 @require_http_methods(["GET"])
 @branch_api
 def branch_order_history(request):
     branch = request.branch_membership.branch
     
-    # Lấy đơn giao hàng và đơn tại bàn
     delivery_orders = Order.objects.filter(branch=branch).prefetch_related('items')
     dine_in_orders = DineInOrder.objects.filter(branch=branch).prefetch_related('items')
     
@@ -573,6 +657,7 @@ def branch_order_history(request):
     for order in delivery_orders:
         order_items = []
         total_ingredients = {}
+        total_cost = 0
         
         for item in order.items.all():
             item_ingredients = []
@@ -581,26 +666,32 @@ def branch_order_history(request):
                 for recipe in recipes:
                     deducted = float(recipe.quantity_per_portion * item.quantity)
                     item_ingredients.append({"name": recipe.ingredient_name, "quantity": deducted, "unit": recipe.unit})
+                    
                     key = f"{recipe.ingredient_name}_{recipe.unit}"
                     if key not in total_ingredients:
                         total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
                     total_ingredients[key]["total"] += deducted
                     
+                    # Tính chi phí: Lấy đơn giá của nguyên liệu hiện tại trong kho
+                    ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
+                    if ing:
+                        total_cost += deducted * float(ing.unit_price)
+                        
             order_items.append({"name": item.product_name, "quantity": item.quantity, "ingredients": item_ingredients})
             
         history_data.append({
-            "code": order.code,
-            "type": "Giao hàng",
-            "created_at": order.created_at.isoformat(),
-            "status": order.get_status_display(),
-            "items": order_items,
-            "total_ingredients": list(total_ingredients.values())
+            "code": order.code, "type": "Giao hàng", "created_at": order.created_at.isoformat(),
+            "status": order.get_status_display(), "items": order_items,
+            "total_ingredients": list(total_ingredients.values()),
+            "total_cost": total_cost, # Chi phí NVL
+            "revenue": float(order.total) # Tiền đơn
         })
         
     # 2. Xử lý đơn tại bàn
     for order in dine_in_orders:
         order_items = []
         total_ingredients = {}
+        total_cost = 0
         
         for item in order.items.all():
             item_ingredients = []
@@ -609,25 +700,34 @@ def branch_order_history(request):
                 for recipe in recipes:
                     deducted = float(recipe.quantity_per_portion * item.quantity)
                     item_ingredients.append({"name": recipe.ingredient_name, "quantity": deducted, "unit": recipe.unit})
+                    
                     key = f"{recipe.ingredient_name}_{recipe.unit}"
                     if key not in total_ingredients:
                         total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
                     total_ingredients[key]["total"] += deducted
                     
+                    # Tính chi phí
+                    ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
+                    if ing:
+                        total_cost += deducted * float(ing.unit_price)
+                        
             order_items.append({"name": item.product_name, "quantity": item.quantity, "ingredients": item_ingredients})
             
+        table_num = ''.join(filter(str.isdigit, order.table.name))
+        if not table_num:
+            table_num = order.table.name 
+            
+        order_code = f"B{table_num}-{order.created_at.strftime('%Y%m%d')}-{order.id:04d}"
+
         history_data.append({
-            "code": f"Bàn {order.table.name} ({order.id})",
-            "type": "Tại bàn",
-            "created_at": order.created_at.isoformat(),
-            "status": order.get_status_display(),
-            "items": order_items,
-            "total_ingredients": list(total_ingredients.values())
+            "code": order_code, "type": "Tại bàn", "created_at": order.created_at.isoformat(),
+            "status": order.get_status_display(), "items": order_items,
+            "total_ingredients": list(total_ingredients.values()),
+            "total_cost": total_cost, # Chi phí NVL
+            "revenue": float(order.total) # Tiền đơn
         })
         
-    # Sắp xếp tất cả các đơn theo thời gian mới nhất
     history_data.sort(key=lambda x: x["created_at"], reverse=True)
-    
     return JsonResponse({"history": history_data[:50]})
 
 # ================= QUẢN LÝ BÀN (NHÂN VIÊN) =================
@@ -723,7 +823,6 @@ def update_dine_in_order_status(request, pk):
         old_status = order.status
         order.status = new_status
         
-        # Nếu chuyển từ PENDING sang PREPARING (Nhận đơn) -> Trừ kho
         if old_status == DineInOrder.Status.PENDING and new_status == DineInOrder.Status.PREPARING:
             for item in order.items.all():
                 if not item.product: continue
@@ -737,7 +836,6 @@ def update_dine_in_order_status(request, pk):
                         ing.quantity = max(0, ing.quantity - total_deduct)
                         ing.save()
 
-        # Nếu chuyển sang Đã phục vụ hoặc Hủy thì giải phóng bàn
         if new_status in [DineInOrder.Status.SERVED, DineInOrder.Status.CANCELLED]:
             order.table.status = Table.Status.EMPTY
             order.table.save()
@@ -750,10 +848,8 @@ def update_dine_in_order_status(request, pk):
 def public_table_info(request, qr_code):
     table = get_object_or_404(Table, qr_code=qr_code)
     return JsonResponse({
-        "table_id": table.id,
-        "table_name": table.name,
-        "branch_name": table.branch.name,
-        "status": table.status
+        "table_id": table.id, "table_name": table.name, 
+        "branch_name": table.branch.name, "status": table.status
     })
 
 @csrf_exempt
@@ -776,10 +872,7 @@ def public_create_dine_in_order(request):
         table.save()
         
     with transaction.atomic():
-        order = DineInOrder.objects.create(
-            branch=table.branch, table=table, note=note, total=0
-        )
-        
+        order = DineInOrder.objects.create(branch=table.branch, table=table, note=note, total=0)
         total = 0
         for item in items_data:
             product = get_object_or_404(Product, code=item.get("product_code"))
@@ -789,17 +882,14 @@ def public_create_dine_in_order(request):
                 unit_price=product.price, quantity=qty, note=item.get("note", "")
             )
             total += product.price * qty
-            
         order.total = total
         order.save()
-        
     return JsonResponse({"ok": True, "order_id": order.id})
 
-# ================= QUẢN LÝ THỰC ĐƠN (CHỈNH SỬA MÓN) =================
+# ================= QUẢN LÝ THỰC ĐƠN (ADMIN TỔNG) =================
 @login_required
 @require_http_methods(["GET", "POST"])
 def branch_product_update(request, code):
-    # Chỉ super_admin mới có quyền
     if request.user.role != 'super_admin':
         return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền sửa món ăn."}, status=403)
         
@@ -808,40 +898,28 @@ def branch_product_update(request, code):
     if request.method == "GET":
         recipes = ProductIngredient.objects.filter(product=product)
         return JsonResponse({
-            "code": product.code,
-            "name": product.name,
-            "image_url": product.image.url if product.image else None,
-            "recipes": [
-                {"name": r.ingredient_name, "qty": float(r.quantity_per_portion), "unit": r.unit} 
-                for r in recipes
-            ]
+            "code": product.code, "name": product.name, "image_url": product.image.url if product.image else None,
+            "recipes": [{"name": r.ingredient_name, "qty": float(r.quantity_per_portion), "unit": r.unit} for r in recipes]
         })
         
     try:
         name = request.POST.get("name", "").strip()
-        if name:
-            product.name = name
-            
-        if 'image' in request.FILES:
-            product.image = request.FILES['image']
-            
+        if name: product.name = name
+        if 'image' in request.FILES: product.image = request.FILES['image']
         product.save()
         return JsonResponse({"ok": True, "name": product.name, "image_url": product.image.url if product.image else None})
     except Exception as e:
         return JsonResponse({"error": f"Lỗi lưu ảnh: {str(e)}"}, status=500)
 
-
 @login_required
 @require_http_methods(["POST"])
 def branch_product_recipe_update(request, code):
-    # Chỉ super_admin mới có quyền
     if request.user.role != 'super_admin':
         return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền sửa công thức."}, status=403)
         
     product = get_object_or_404(Product, code=code)
     data, error = parse_json(request)
     if error: return error
-    
     recipes_data = data.get("recipes", [])
     
     try:
@@ -852,12 +930,67 @@ def branch_product_recipe_update(request, code):
                 qty = float(r.get("qty", 0))
                 unit = r.get("unit", "").strip()
                 if name and qty > 0 and unit:
-                    ProductIngredient.objects.create(
-                        product=product, ingredient_name=name, quantity_per_portion=qty, unit=unit
-                    )
+                    ProductIngredient.objects.create(product=product, ingredient_name=name, quantity_per_portion=qty, unit=unit)
         return JsonResponse({"ok": True})
     except Exception as e:
         return JsonResponse({"error": f"Lỗi lưu công thức: {str(e)}"}, status=500)
+    
+@login_required
+@require_http_methods(["POST"])
+def admin_product_create(request):
+    if request.user.role != 'super_admin':
+        return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền thêm món."}, status=403)
+    
+    try:
+        # Nhận dữ liệu từ FormData (vì có file ảnh)
+        name = request.POST.get("name", "").strip()
+        category = request.POST.get("category", "").strip()
+        price = request.POST.get("price", "0")
+        description = request.POST.get("description", "").strip()
+        recipes_json = request.POST.get("recipes", "[]")
+        
+        if not name or not category:
+            return JsonResponse({"error": "Vui lòng nhập tên và danh mục món ăn."}, status=400)
+            
+        # Tạo mã code tự động (VD: d21, d22...)
+        import random
+        import string
+        while True:
+            new_code = f"d{random.randint(100, 999)}"
+            if not Product.objects.filter(code=new_code).exists():
+                break
+
+        product = Product.objects.create(
+            code=new_code,
+            name=name,
+            category=category,
+            price=int(price),
+            description=description,
+            is_active=True
+        )
+        
+        if 'image' in request.FILES:
+            product.image = request.FILES['image']
+            product.save()
+
+        # Lưu định lượng nguyên liệu
+        import json
+        recipes = json.loads(recipes_json)
+        for r in recipes:
+            ing_name = r.get("name", "").strip()
+            qty = float(r.get("qty", 0))
+            unit = r.get("unit", "").strip()
+            if ing_name and qty > 0 and unit:
+                ProductIngredient.objects.create(
+                    product=product, 
+                    ingredient_name=ing_name, 
+                    quantity_per_portion=qty, 
+                    unit=unit
+                )
+                
+        return JsonResponse({"ok": True})
+    except Exception as e:
+        return JsonResponse({"error": f"Lỗi tạo món: {str(e)}"}, status=500)
 
 # ================= GOGODUK & NOMINATIM PROXY API =================
 GOGODUK_BASE = "https://api.gogoduk.com"
@@ -865,17 +998,10 @@ GOGODUK_BASE = "https://api.gogoduk.com"
 @require_http_methods(["GET"])
 def gogoduk_proxy_suggest(request):
     input_text = request.GET.get("input", "").strip()
-    if len(input_text) < 2:
-        return JsonResponse({"predictions": []})
-    
+    if len(input_text) < 2: return JsonResponse({"predictions": []})
     params = {"input": input_text, "lang": "vi", "country": "VN"}
     try:
-        r = requests.get(
-            f"{GOGODUK_BASE}/v1/suggest",
-            params=params,
-            headers={"X-API-Key": settings.GOGODUK_API_KEY},
-            timeout=5,
-        )
+        r = requests.get(f"{GOGODUK_BASE}/v1/suggest", params=params, headers={"X-API-Key": settings.GOGODUK_API_KEY}, timeout=5)
         return JsonResponse(r.json(), status=r.status_code)
     except requests.RequestException as e:
         return JsonResponse({"error": str(e)}, status=502)
@@ -883,16 +1009,9 @@ def gogoduk_proxy_suggest(request):
 @require_http_methods(["GET"])
 def gogoduk_proxy_resolve(request):
     place_id = request.GET.get("id", "").strip()
-    if not place_id:
-        return JsonResponse({"error": "Thiếu placeId"}, status=400)
-    
+    if not place_id: return JsonResponse({"error": "Thiếu placeId"}, status=400)
     try:
-        r = requests.get(
-            f"{GOGODUK_BASE}/v1/place/resolve",
-            params={"id": place_id, "lang": "vi"},
-            headers={"X-API-Key": settings.GOGODUK_API_KEY},
-            timeout=5,
-        )
+        r = requests.get(f"{GOGODUK_BASE}/v1/place/resolve", params={"id": place_id, "lang": "vi"}, headers={"X-API-Key": settings.GOGODUK_API_KEY}, timeout=5)
         return JsonResponse(r.json(), status=r.status_code)
     except requests.RequestException as e:
         return JsonResponse({"error": str(e)}, status=502)
@@ -901,16 +1020,19 @@ def gogoduk_proxy_resolve(request):
 def nominatim_proxy_reverse(request):
     lat = request.GET.get("lat")
     lon = request.GET.get("lon")
-    if not lat or not lon:
-        return JsonResponse({"error": "Thiếu tọa độ"}, status=400)
-    
+    if not lat or not lon: return JsonResponse({"error": "Thiếu tọa độ"}, status=400)
     try:
-        r = requests.get(
-            "https://nominatim.openstreetmap.org/reverse",
-            params={"lat": lat, "lon": lon, "format": "json", "accept-language": "vi", "addressdetails": 1},
-            headers={'User-Agent': 'MieuQuanApp/1.0 (admin@mieuquan.vn)'},
-            timeout=5,
-        )
+        r = requests.get("https://nominatim.openstreetmap.org/reverse", params={"lat": lat, "lon": lon, "format": "json", "accept-language": "vi", "addressdetails": 1}, headers={'User-Agent': 'MieuQuanApp/1.0 (admin@mieuquan.vn)'}, timeout=5)
         return JsonResponse(r.json(), status=r.status_code)
     except requests.RequestException as e:
         return JsonResponse({"error": str(e)}, status=502)
+    
+@login_required
+@require_http_methods(["GET"])
+def admin_all_ingredients(request):
+    if request.user.role != 'super_admin':
+        return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền xem."}, status=403)
+        
+    # Lấy tất cả nguyên liệu trong hệ thống, bỏ trùng lặp tên
+    ingredients = Ingredient.objects.all().values('name', 'unit').distinct().order_by('name')
+    return JsonResponse({"ingredients": list(ingredients)})

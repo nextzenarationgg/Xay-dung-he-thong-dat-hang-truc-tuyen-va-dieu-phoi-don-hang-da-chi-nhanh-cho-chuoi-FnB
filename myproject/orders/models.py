@@ -17,7 +17,7 @@ class Product(models.Model):
     category = models.CharField(max_length=30)
     price = models.PositiveIntegerField()
     description = models.TextField(blank=True)
-    image = models.ImageField(upload_to='products/', null=True, blank=True) # Đã thêm trường ảnh
+    image = models.ImageField(upload_to='products/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -175,7 +175,6 @@ class DispatchLog(models.Model):
     def __str__(self):
         return f"Dispatch {self.order.code} ({self.reason})"
 
-# ================= ĐỊNH LƯỢNG MÓN ĂN (RECIPE) =================
 class ProductIngredient(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipe_items')
     ingredient_name = models.CharField(max_length=150)
@@ -188,7 +187,6 @@ class ProductIngredient(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.ingredient_name}"
 
-# ================= PHỤC VỤ TẠI QUÁN (DINE-IN) =================
 class Table(models.Model):
     class Status(models.TextChoices):
         EMPTY = "empty", "Trống"
