@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/cart/items/<str:product_code>/", order_views.cart_item, name="cart_item"),
     path("api/orders/", order_views.order_list_create, name="order_list_create"),
     path("api/orders/<str:code>/", order_views.order_detail, name="order_detail"),
+<<<<<<< HEAD
     path('api/admin/products/create/', admin_product_create, name='admin_product_create'),
     path("api/branch/orders/", order_views.branch_order_list, name="branch_order_list"),
     path('api/admin/ingredients/', admin_all_ingredients, name='admin_all_ingredients'),
@@ -61,3 +62,33 @@ urlpatterns = [
     path("api/branch/orders/<str:code>/assign-shipper/", order_views.assign_branch_shipper, name="assign_branch_shipper"),
     path("api/branch/orders/<str:code>/status/", order_views.update_branch_order_status, name="update_branch_order_status"),
 ]
+=======
+    path(
+        "api/orders/<str:code>/payment/",
+        order_views.start_sepay_payment,
+        name="start_sepay_payment",
+    ),
+    path("payments/sepay/ipn/", order_views.sepay_ipn, name="sepay_ipn"),
+    path(
+        "payments/sepay/return/<str:result>/<str:invoice_number>/",
+        order_views.sepay_payment_return,
+        name="sepay_payment_return",
+    ),
+    path("api/branch/orders/", order_views.branch_order_list, name="branch_order_list"),
+    path(
+        "api/branch/orders/<str:code>/claim/",
+        order_views.claim_branch_order,
+        name="claim_branch_order",
+    ),
+    path(
+        "api/branch/orders/<str:code>/assign-shipper/",
+        order_views.assign_branch_shipper,
+        name="assign_branch_shipper",
+    ),
+    path(
+        "api/branch/orders/<str:code>/status/",
+        order_views.update_branch_order_status,
+        name="update_branch_order_status",
+    ),
+]
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)

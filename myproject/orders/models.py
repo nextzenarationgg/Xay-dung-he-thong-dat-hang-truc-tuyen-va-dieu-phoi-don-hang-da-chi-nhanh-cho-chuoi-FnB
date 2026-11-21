@@ -67,9 +67,13 @@ class Order(models.Model):
 
     class PaymentMethod(models.TextChoices):
         CASH = "cod", "Tiền mặt khi nhận hàng"
-        BANK_TRANSFER = "qr", "Chuyển khoản (mô phỏng)"
+        BANK_TRANSFER = "qr", "Chuyển khoản QR (SePay)"
         MOMO = "momo", "Ví MoMo (mô phỏng)"
         CARD = "card", "Thẻ ngân hàng (mô phỏng)"
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", "Chờ thanh toán"
+        PAID = "paid", "Đã thanh toán"
 
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -105,7 +109,11 @@ class Order(models.Model):
         default=Status.PENDING,
     )
     payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices)
-    payment_status = models.CharField(max_length=20, default="pending")
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
     recipient_name = models.CharField(max_length=150)
     recipient_phone = models.CharField(max_length=20)
     delivery_address = models.CharField(max_length=500)
@@ -125,6 +133,37 @@ class Order(models.Model):
     def __str__(self):
         return self.code
 
+<<<<<<< HEAD
+=======
+
+class PaymentTransaction(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Đang chờ"
+        PAID = "paid", "Đã thanh toán"
+        VOIDED = "voided", "Đã hủy"
+
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="payment_transactions",
+    )
+    invoice_number = models.CharField(max_length=64, unique=True)
+    amount = models.PositiveBigIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    provider_order_id = models.CharField(max_length=128, blank=True)
+    provider_transaction_id = models.CharField(max_length=128, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.invoice_number
+
+
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(

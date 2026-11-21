@@ -213,7 +213,7 @@ Khi giao diện chi nhánh đang mở và tab trình duyệt hiển thị, danh 
 - `POST /api/branch/orders/<code>/status/`: chuyển đơn sang `preparing` hoặc `ready`; chỉ chi nhánh sở hữu đơn được cập nhật.
 - `POST /api/branch/orders/<code>/assign-shipper/`: gán shipper bằng `{"shipper_id": <id>}` cho đơn `ready`, sau đó chuyển đơn sang `delivering`.
 
-Tài khoản shipper cần có role `delivery` và `BranchMembership` gắn với chi nhánh. Chưa có điều phối tự động hoặc giao diện/tài khoản shipper riêng; nhân viên chi nhánh cập nhật trạng thái hoàn tất giao. Phí giao hàng đang cố định 15.000đ. Tiền mặt khi nhận hàng được ghi nhận là phương thức thanh toán; chuyển khoản, MoMo và thẻ chỉ là lựa chọn mô phỏng, chưa kết nối cổng thanh toán thật.
+Tài khoản shipper cần có role `delivery` và `BranchMembership` gắn với chi nhánh. Chưa có điều phối tự động hoặc giao diện/tài khoản shipper riêng; nhân viên chi nhánh cập nhật trạng thái hoàn tất giao. Phí giao hàng đang cố định 15.000đ. Tiền mặt khi nhận hàng được ghi nhận là phương thức thanh toán; thanh toán QR đang được tích hợp qua SePay Sandbox. MoMo và thẻ vẫn là lựa chọn mô phỏng.
 
 ## 🌐 Triển khai trực tuyến
 
@@ -285,3 +285,43 @@ Các thành viên cùng tham gia xây dựng, phát triển và hoàn thiện h�
 Dự án được phát triển phục vụ mục đích học tập và xây dựng đồ án.
 
 Thông tin về giấy phép sử dụng và phân phối mã nguồn sẽ được bổ sung theo quyết định của nhóm.
+
+## Tích hợp thanh toán SePay Sandbox
+
+Luồng QR dùng cổng thanh toán SePay Sandbox. Khách hàng được chuyển sang trang checkout của SePay; đơn chỉ được hiển thị cho chi nhánh sau khi endpoint IPN xác nhận đã thanh toán.
+
+### Cấu hình môi trường
+
+Thiết lập các biến môi trường sau trên máy chạy Django hoặc trong phần Environment của dịch vụ triển khai:
+
+| Biến | Giá trị |
+|---|---|
+| `SEPAY_ENVIRONMENT` | `sandbox` |
+| `SEPAY_MERCHANT_ID` | Merchant ID Sandbox trong tài khoản SePay |
+| `SEPAY_MERCHANT_SECRET_KEY` | Secret Key Sandbox dùng ký form checkout |
+| `SEPAY_IPN_SECRET_KEY` | Khóa tự đặt trong cấu hình xác thực IPN của SePay |
+| `SEPAY_PUBLIC_BASE_URL` | Domain HTTPS công khai của ứng dụng, không có dấu `/` ở cuối |
+
+Trong PowerShell, đặt biến cho phiên terminal hiện tại trước khi chạy Django:
+
+```powershell
+$env:SEPAY_ENVIRONMENT = "sandbox"
+$env:SEPAY_MERCHANT_ID = "YOUR_SANDBOX_MERCHANT_ID"
+$env:SEPAY_MERCHANT_SECRET_KEY = "YOUR_SANDBOX_SECRET_KEY"
+$env:SEPAY_IPN_SECRET_KEY = "YOUR_IPN_SECRET"
+$env:SEPAY_PUBLIC_BASE_URL = "https://your-public-domain.example"
+```
+
+Không commit các giá trị bí mật vào Git. Sandbox và Production dùng bộ Merchant ID/Secret Key riêng.
+
+### Cấu hình IPN trên SePay
+
+Trong Cổng thanh toán → Cấu hình → IPN, khai báo URL:
+
+```text
+https://your-public-domain.example/payments/sepay/ipn/
+```
+
+Chọn xác thực bằng `SECRET_KEY` và nhập cùng giá trị đã đặt trong `SEPAY_IPN_SECRET_KEY`. SePay cần truy cập được domain công khai này; `localhost` không dùng được làm IPN URL.
+
+Ứng dụng dùng `POST /api/orders/<mã-đơn>/payment/` để tạo form thanh toán đã ký và chuyển khách sang Sandbox. SePay gửi IPN về `POST /payments/sepay/ipn/`; các URL thành công, lỗi và hủy sẽ đưa khách về danh sách đơn hàng.

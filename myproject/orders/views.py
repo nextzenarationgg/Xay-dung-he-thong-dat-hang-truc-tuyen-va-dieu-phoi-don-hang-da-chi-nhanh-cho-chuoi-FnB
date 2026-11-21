@@ -1,16 +1,23 @@
 import json
 import re
+<<<<<<< HEAD
 import os
 import secrets
 import requests
+=======
+import secrets
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from functools import wraps
+from urllib.parse import urlencode
 
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+<<<<<<< HEAD
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
@@ -23,6 +30,15 @@ from .models import (
     Cart, CartItem, DispatchLog, Order, OrderItem, Product, ProductIngredient,
     Table, DineInOrder, DineInOrderItem
 )
+=======
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods, require_POST
+from django.conf import settings
+
+from accounts.models import BranchMembership
+from .models import Cart, CartItem, Order, OrderItem, PaymentTransaction, Product
+from .sepay import build_checkout_data, checkout_configuration_error, valid_ipn_secret
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 
 DELIVERY_FEE = 15000
 VOUCHERS = {
@@ -124,6 +140,12 @@ def order_payload(order):
         "payment_method": order.payment_method,
         "payment_method_label": order.get_payment_method_display(),
         "payment_status": order.payment_status,
+        "payment_status_label": (
+            "Thanh toán khi nhận hàng"
+            if order.payment_method == Order.PaymentMethod.CASH
+            and order.payment_status == Order.PaymentStatus.PENDING
+            else order.get_payment_status_display()
+        ),
         "recipient_name": order.recipient_name,
         "recipient_phone": order.recipient_phone,
         "delivery_address": order.delivery_address,
@@ -176,7 +198,9 @@ def branch_order_list(request):
     orders = (
         Order.objects.filter(
             Q(branch=branch) | Q(branch__isnull=True, status=Order.Status.PENDING)
-        )
+        ).filter(~Q(payment_method=Order.PaymentMethod.BANK_TRANSFER) | Q(
+            payment_status=Order.PaymentStatus.PAID,
+        ))
         .select_related("branch", "shipper")
         .prefetch_related("items")
     )
@@ -201,6 +225,7 @@ def branch_order_list(request):
 def claim_branch_order(request, code):
     branch = request.branch_membership.branch
     now = timezone.now()
+<<<<<<< HEAD
     
     with transaction.atomic():
         order = Order.objects.select_for_update().filter(code=code).first()
@@ -235,6 +260,26 @@ def claim_branch_order(request, code):
                     ing.quantity = max(0, ing.quantity - total_deduct)
                     ing.save()
 
+=======
+    claimed = Order.objects.filter(
+        code=code,
+        branch__isnull=True,
+        status=Order.Status.PENDING,
+    ).filter(
+        ~Q(payment_method=Order.PaymentMethod.BANK_TRANSFER)
+        | Q(payment_status=Order.PaymentStatus.PAID),
+    ).update(
+        branch=branch,
+        accepted_by=request.user,
+        accepted_at=now,
+        status=Order.Status.CONFIRMED,
+    )
+    if not claimed:
+        return JsonResponse(
+            {"error": "Đơn đã được chi nhánh khác nhận hoặc không còn chờ tiếp nhận."},
+            status=409,
+        )
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
     order = Order.objects.select_related("branch", "shipper").prefetch_related("items").get(code=code)
     return JsonResponse({"order": order_payload(order)})
 
@@ -413,6 +458,10 @@ def order_list_create(request):
         return JsonResponse({"error": "Ghi chú hoặc địa chỉ vượt quá độ dài cho phép."}, status=400)
     if payment_method not in Order.PaymentMethod.values:
         return JsonResponse({"error": "Phương thức thanh toán không hợp lệ."}, status=400)
+    if payment_method == Order.PaymentMethod.BANK_TRANSFER:
+        config_error = checkout_configuration_error()
+        if config_error:
+            return JsonResponse({"error": config_error}, status=503)
 
     with transaction.atomic():
         cart = Cart.objects.select_for_update().filter(customer=request.user).first()
@@ -430,6 +479,10 @@ def order_list_create(request):
         except ValueError as exc:
             return JsonResponse({"error": str(exc)}, status=400)
 
+        total = max(0, subtotal + DELIVERY_FEE - discount)
+        if payment_method == Order.PaymentMethod.BANK_TRANSFER and total <= 0:
+            return JsonResponse({"error": "Số tiền thanh toán phải lớn hơn 0."}, status=400)
+
         order = Order.objects.create(
             customer=request.user,
             payment_method=payment_method,
@@ -443,7 +496,7 @@ def order_list_create(request):
             subtotal=subtotal,
             delivery_fee=DELIVERY_FEE,
             discount=discount,
-            total=max(0, subtotal + DELIVERY_FEE - discount),
+            total=total,
         )
         OrderItem.objects.bulk_create([
             OrderItem(
@@ -480,6 +533,7 @@ def order_detail(request, code):
     )
     return JsonResponse({"order": order_payload(order)})
 
+<<<<<<< HEAD
 # ================= QUẢN LÝ NGUYÊN VẬT LIỆU =================
 @require_http_methods(["GET", "POST"])
 @branch_api
@@ -1036,3 +1090,131 @@ def admin_all_ingredients(request):
     # Lấy tất cả nguyên liệu trong hệ thống, bỏ trùng lặp tên
     ingredients = Ingredient.objects.all().values('name', 'unit').distinct().order_by('name')
     return JsonResponse({"ingredients": list(ingredients)})
+=======
+
+@require_POST
+@customer_api
+def start_sepay_payment(request, code):
+    order = get_object_or_404(
+        Order.objects.filter(customer=request.user),
+        code=code,
+    )
+    if order.payment_method != Order.PaymentMethod.BANK_TRANSFER:
+        return JsonResponse({"error": "Đơn này không dùng thanh toán QR."}, status=400)
+    if order.payment_status == Order.PaymentStatus.PAID:
+        return JsonResponse({"error": "Đơn hàng đã được thanh toán."}, status=409)
+    if order.total <= 0:
+        return JsonResponse({"error": "Số tiền thanh toán phải lớn hơn 0."}, status=400)
+    config_error = checkout_configuration_error()
+    if config_error:
+        return JsonResponse({"error": config_error}, status=503)
+
+    with transaction.atomic():
+        order = Order.objects.select_for_update().get(pk=order.pk)
+        if order.payment_status == Order.PaymentStatus.PAID:
+            return JsonResponse({"error": "Đơn hàng đã được thanh toán."}, status=409)
+        payment = (
+            order.payment_transactions.filter(status=PaymentTransaction.Status.PENDING)
+            .order_by("-created_at")
+            .first()
+        )
+        if payment is None:
+            payment = PaymentTransaction.objects.create(
+                order=order,
+                invoice_number=f"{order.code}-P{secrets.token_hex(3).upper()}",
+                amount=order.total,
+            )
+
+    return JsonResponse(
+        {
+            "checkout": build_checkout_data(order, payment),
+            "order_code": order.code,
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def sepay_ipn(request):
+    if not valid_ipn_secret(request.headers.get("X-Secret-Key", "")):
+        return JsonResponse({"error": "IPN authentication failed."}, status=401)
+    try:
+        payload = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Invalid JSON payload."}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "Invalid IPN payload."}, status=400)
+
+    notification_type = payload.get("notification_type")
+    order_data = payload.get("order")
+    if not isinstance(order_data, dict):
+        return JsonResponse({"error": "Missing order data."}, status=400)
+    invoice_number = str(order_data.get("order_invoice_number", ""))
+    if not invoice_number:
+        return JsonResponse({"error": "Missing invoice number."}, status=400)
+
+    with transaction.atomic():
+        payment = (
+            PaymentTransaction.objects.select_for_update()
+            .select_related("order")
+            .filter(invoice_number=invoice_number)
+            .first()
+        )
+        if payment is None:
+            return JsonResponse({"error": "Payment not found."}, status=404)
+
+        if notification_type == "ORDER_PAID":
+            try:
+                received_amount = Decimal(str(order_data.get("order_amount", "")))
+            except (InvalidOperation, TypeError, ValueError):
+                return JsonResponse({"error": "Invalid payment amount."}, status=400)
+            if (
+                received_amount != Decimal(payment.amount)
+                or order_data.get("order_currency") != "VND"
+            ):
+                return JsonResponse({"error": "Payment amount or currency mismatch."}, status=400)
+
+            transaction_data = payload.get("transaction")
+            transaction_id = ""
+            if isinstance(transaction_data, dict):
+                transaction_id = str(transaction_data.get("transaction_id", ""))[:128]
+            payment.status = PaymentTransaction.Status.PAID
+            payment.provider_order_id = str(order_data.get("id", ""))[:128]
+            payment.provider_transaction_id = transaction_id
+            payment.paid_at = payment.paid_at or timezone.now()
+            payment.save(
+                update_fields=(
+                    "status",
+                    "provider_order_id",
+                    "provider_transaction_id",
+                    "paid_at",
+                )
+            )
+            if payment.order.payment_status != Order.PaymentStatus.PAID:
+                payment.order.payment_status = Order.PaymentStatus.PAID
+                payment.order.save(update_fields=("payment_status",))
+        elif notification_type == "TRANSACTION_VOID":
+            if payment.status == PaymentTransaction.Status.PENDING:
+                payment.status = PaymentTransaction.Status.VOIDED
+                payment.save(update_fields=("status",))
+
+    return JsonResponse({"success": True}, status=200)
+
+
+@require_http_methods(["GET"])
+def sepay_payment_return(request, result, invoice_number):
+    if result not in {"success", "error", "cancel"}:
+        return JsonResponse({"error": "Invalid payment result."}, status=400)
+    payment = get_object_or_404(
+        PaymentTransaction.objects.select_related("order"),
+        invoice_number=invoice_number,
+    )
+    if result in {"error", "cancel"} and payment.status == PaymentTransaction.Status.PENDING:
+        payment.status = PaymentTransaction.Status.VOIDED
+        payment.save(update_fields=("status",))
+
+    destination = "/?" + urlencode(
+        {"payment_result": result, "order_code": payment.order.code}
+    ) + "#orders"
+    return HttpResponseRedirect(destination)
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)

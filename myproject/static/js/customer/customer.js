@@ -52,6 +52,20 @@ function applyCatalog(products){
   });
 }
 function reportApiError(error){toast(error.message||'Không thể kết nối máy chủ. Vui lòng thử lại.')}
+function submitSePayCheckout(checkout){
+  if(!checkout||!checkout.action||!checkout.fields)throw new Error('Không nhận được dữ liệu thanh toán QR.');
+  var form=document.createElement('form');
+  form.method=checkout.method||'POST';form.action=checkout.action;
+  Object.keys(checkout.fields).forEach(function(key){
+    var input=document.createElement('input');
+    input.type='hidden';input.name=key;input.value=String(checkout.fields[key]);form.appendChild(input);
+  });
+  document.body.appendChild(form);form.submit();
+}
+function startSePayPayment(orderCode){
+  return apiRequest('/api/orders/'+encodeURIComponent(orderCode)+'/payment/','POST')
+    .then(function(payload){submitSePayCheckout(payload.checkout)});
+}
 function custNav(){
   var g={dish:'menu',cart:'cart',checkout:'cart'}[S.key]||S.key;
   var it=[['home','Trang chủ'],['menu','Thực đơn'],['orders','Đơn hàng của tôi'],['offers','Ưu đãi'],['account','Tài khoản']];
@@ -192,6 +206,7 @@ ACT.usev=function(d){applyV(d.c)};
 /* ================= CUSTOMER: CHECKOUT ================= */
 V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:function(){
   if(!S.cart.length)return V.cart.html();
+<<<<<<< HEAD
   if(!S.co)S.co={};
   if(S.co.address===undefined)S.co.address='';
   if(S.co.searchQuery===undefined)S.co.searchQuery='';
@@ -199,6 +214,10 @@ V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:
 
   var pay=[['cod','Tiền mặt','Trả khi nhận hàng'],['qr','Chuyển khoản QR','Mô phỏng, không trừ tiền thật'],['momo','Ví MoMo','Mô phỏng, không trừ tiền thật'],['card','Thẻ ngân hàng','Mô phỏng, không trừ tiền thật']].map(function(p){return '<button class="'+(S.co.pay===p[0]?'on':'')+'" data-act="cpay" data-p2="'+p[0]+'"><b>'+p[1]+'</b><span>'+p[2]+'</span></button>'}).join('');
 
+=======
+  var addrs=S.saved.map(function(k){var a=ADDR[k],md=Math.min.apply(null,BR.map(function(b){return a.d[b.id]}));return '<button class="'+(S.addr===k?'on':'')+'" data-act="caddr" data-k2="'+k+'"><b>'+esc(a.l)+'</b><span>'+esc(a.a)+'</span><span>Bếp gần nhất cách '+dec(md)+' km</span></button>'}).join('');
+  var pay=[['cod','Tiền mặt','Trả khi nhận hàng'],['qr','Chuyển khoản QR','Thanh toán qua cổng SePay'],['momo','Ví MoMo','Chưa tích hợp'],['card','Thẻ ngân hàng','Chưa tích hợp']].map(function(p){return '<button class="'+(S.co.pay===p[0]?'on':'')+'" data-act="cpay" data-p2="'+p[0]+'"><b>'+p[1]+'</b><span>'+p[2]+'</span></button>'}).join('');
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
   return ph('Xác nhận đơn hàng','Giao tới <span class="it">đâu?</span>')+
   '<div class="two"><section class="col" style="gap:26px">'+
   '<div><div class="cap" style="margin-bottom:10px">Người nhận</div><div class="f2"><div class="fld"><label for="cn">Họ và tên</label><input id="cn" class="in" data-in="co_name" value="'+esc(S.co.name)+'" autocomplete="name"></div><div class="fld"><label for="cp">Số điện thoại</label><input id="cp" class="in" data-in="co_phone" value="'+esc(S.co.phone)+'" inputmode="tel" autocomplete="tel"></div></div></div>'+
@@ -230,6 +249,10 @@ V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:
   '<div><div class="cap" style="margin-bottom:10px">Phương thức thanh toán</div><div class="pay">'+pay+'</div></div></section>'+
   '<aside class="col"><div class="plate"><div class="cap" style="margin-bottom:8px">Đơn của bạn</div>'+S.cart.map(function(i){return '<div class="il"><span>'+esc(DM[i[0]].n)+' <span class="dim">× '+i[1]+'</span></span><b class="mono">'+money(DM[i[0]].p*i[1])+'</b></div>'}).join('')+
   '<div class="tot" style="margin-top:8px"><span class="dim">Tạm tính</span><b class="mono">'+money(cartSummary.subtotal)+'</b></div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Phí giao, ưu đãi và tổng tiền sẽ do máy chủ xác nhận.</p></div>'+
+<<<<<<< HEAD
+=======
+  '<div class="plate ink"><div class="cap">Thanh toán đơn hàng</div><h3 class="h3" style="margin:8px 0">Đơn được xác nhận sau khi thanh toán.</h3><p style="font-size:13.5px;opacity:.85">Nếu chọn QR, bạn sẽ được chuyển tới cổng SePay để thanh toán. Đơn chỉ được chuyển đến chi nhánh sau khi hệ thống nhận xác nhận từ SePay.</p></div>'+
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
   '<button class="btn terra blk" data-act="place" style="padding:16px">Xác nhận đặt hàng →</button>'+
   '</aside></div>';
 }};
@@ -524,10 +547,22 @@ ACT.place=function(){
   }).then(function(payload){
     dbOrders.unshift(payload.order);
     S.cart=[];cartSummary={count:0,subtotal:0};S.voucher=null;S.inote={};
+<<<<<<< HEAD
     S.co.address='';S.co.searchQuery='';S.co.suggestions=[];
     S.co.lat=null;S.co.lng=null;
     var branchMsg=payload.order.branch_name?(' · Bếp: '+payload.order.branch_name):' · Đơn vào hàng chờ (ngoài bán kính 10km)';
     toast('Đã tạo đơn hàng '+payload.order.code+branchMsg);
+=======
+    if(payload.order.payment_method==='qr'){
+      toast('Đang chuyển tới cổng thanh toán SePay…');
+      startSePayPayment(payload.order.code).catch(function(error){
+        toast(error.message||'Không thể khởi tạo thanh toán. Bạn có thể thử lại trong đơn hàng.');
+        go('orders');
+      });
+      return;
+    }
+    toast('Đã tạo đơn hàng '+payload.order.code);
+>>>>>>> cce2945 (Integrate SePay sandbox QR payments)
     go('orders');
   }).catch(reportApiError);
 };
@@ -538,10 +573,38 @@ V.orders={dj:['/don-hang/','customer/order_list.html','OrderListView'],html:func
   var content=dbOrders.length?'<div class="col" style="gap:18px">'+dbOrders.map(function(order){
     var lines=order.items.map(function(item){return esc(item.name)+' × '+item.quantity+(item.note?' · '+esc(item.note):'')}).join(', ');
     var statusClass=order.status==='completed'?'ok':'terra';
-    return '<article class="plate"><div class="row" style="align-items:flex-start"><div class="grow" style="min-width:200px"><div class="row" style="gap:10px"><b class="num" style="font-size:22px">'+esc(order.code)+'</b>'+pill(esc(order.status_label),statusClass)+'</div><div class="mono dim" style="font-size:12px;margin:6px 0 10px">'+esc(new Date(order.created_at).toLocaleString('vi-VN'))+'</div><div style="font-size:14px">'+lines+'</div><div class="dim" style="font-size:13px;margin-top:8px">'+esc(order.delivery_address)+'</div></div><div class="tr"><div class="num" style="font-size:26px">'+money(order.total)+'</div><div class="mono dim" style="font-size:12px;margin-top:4px">'+esc(order.payment_method_label)+'</div></div></div><div class="mono dim" style="font-size:12px;margin-top:12px">Phí giao '+money(order.delivery_fee)+' · Giảm '+money(order.discount)+' · Trạng thái thanh toán: chưa xử lý</div></article>';
+    var retryPayment=order.payment_method==='qr'&&order.payment_status!=='paid'?'<button class="btn ghost sm" data-act="retryPayment" data-code="'+esc(order.code)+'">Thanh toán QR / thử lại</button>':'';
+    return '<article class="plate"><div class="row" style="align-items:flex-start"><div class="grow" style="min-width:200px"><div class="row" style="gap:10px"><b class="num" style="font-size:22px">'+esc(order.code)+'</b>'+pill(esc(order.status_label),statusClass)+'</div><div class="mono dim" style="font-size:12px;margin:6px 0 10px">'+esc(new Date(order.created_at).toLocaleString('vi-VN'))+'</div><div style="font-size:14px">'+lines+'</div><div class="dim" style="font-size:13px;margin-top:8px">'+esc(order.delivery_address)+'</div></div><div class="tr"><div class="num" style="font-size:26px">'+money(order.total)+'</div><div class="mono dim" style="font-size:12px;margin-top:4px">'+esc(order.payment_method_label)+'</div></div></div><div class="mono dim" style="font-size:12px;margin-top:12px">Phí giao '+money(order.delivery_fee)+' · Giảm '+money(order.discount)+' · Thanh toán: '+esc(order.payment_status_label||order.payment_status||'Chờ thanh toán')+'</div>'+retryPayment+'</article>';
   }).join('')+'</div>':'<div class="empty">Bạn chưa có đơn hàng nào.<br><br><button class="btn terra" data-act="go" data-k="menu">Chọn món →</button></div>';
   return ph('Lịch sử · '+dbOrders.length+' đơn','Đơn hàng <span class="it">của tôi</span>')+content;
 }};
+ACT.retryPayment=function(d){startSePayPayment(d.code).catch(reportApiError)};
+
+function upsertCustomerOrder(order){
+  var index=dbOrders.findIndex(function(item){return item.code===order.code});
+  if(index<0)dbOrders.unshift(order);else dbOrders[index]=order;
+}
+function refreshSePayOrder(orderCode,attempt){
+  apiRequest('/api/orders/'+encodeURIComponent(orderCode)+'/','GET').then(function(payload){
+    upsertCustomerOrder(payload.order);render();
+    if(payload.order.payment_status==='paid')toast('Đã xác nhận thanh toán cho đơn '+orderCode);
+    else if(attempt<8)setTimeout(function(){refreshSePayOrder(orderCode,attempt+1)},1500);
+    else toast('Đang chờ SePay xác nhận. Trạng thái đơn sẽ tự cập nhật.');
+  }).catch(function(){});
+}
+var sepayReturnParams=new URLSearchParams(window.location.search);
+var sepayReturnResult=sepayReturnParams.get('payment_result');
+var sepayReturnOrder=sepayReturnParams.get('order_code');
+function handleSePayReturn(){
+  if(!sepayReturnResult||!sepayReturnOrder)return;
+  go('orders');
+  if(sepayReturnResult==='success'){
+    toast('Đang kiểm tra xác nhận thanh toán…');
+    refreshSePayOrder(sepayReturnOrder,0);
+  }else{
+    toast(sepayReturnResult==='cancel'?'Bạn đã hủy thanh toán. Có thể thử lại từ đơn hàng.':'Thanh toán chưa hoàn tất. Bạn có thể thử lại từ đơn hàng.');
+  }
+}
 ACT.torev=function(d){S.accTab='reviews';S.rv.no=d.no;go('account')};
 
 /* ================= CUSTOMER: OFFERS ================= */
@@ -618,9 +681,11 @@ Promise.all(startupRequests).then(function(results){
     dbOrders=results[2].orders;
   }
   initApp();
+  handleSePayReturn();
 }).catch(function(error){
   reportApiError(error);
   initApp();
+  handleSePayReturn();
 });
 
 /* ================= LEAFLET MAP PICKER ================= */
