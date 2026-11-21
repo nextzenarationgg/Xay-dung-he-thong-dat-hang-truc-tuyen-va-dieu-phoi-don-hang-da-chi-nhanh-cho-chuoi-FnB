@@ -126,10 +126,16 @@ def product_list(request):
     )
 
 def order_payload(order):
+    status_label = (
+        "Chờ thanh toán"
+        if order.payment_method == Order.PaymentMethod.BANK_TRANSFER
+        and order.payment_status != Order.PaymentStatus.PAID
+        else order.get_status_display()
+    )
     return {
         "code": order.code,
         "status": order.status,
-        "status_label": order.get_status_display(),
+        "status_label": status_label,
         "payment_method": order.payment_method,
         "payment_method_label": order.get_payment_method_display(),
         "payment_status": order.payment_status,
