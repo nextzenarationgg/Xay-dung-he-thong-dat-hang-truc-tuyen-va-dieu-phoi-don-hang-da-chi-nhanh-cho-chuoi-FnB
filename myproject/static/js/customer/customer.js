@@ -247,7 +247,6 @@ V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:
   '<div><div class="cap" style="margin-bottom:10px">Phương thức thanh toán</div><div class="pay">'+pay+'</div></div></section>'+
   '<aside class="col"><div class="plate"><div class="cap" style="margin-bottom:8px">Đơn của bạn</div>'+S.cart.map(function(i){return '<div class="il"><span>'+esc(DM[i[0]].n)+' <span class="dim">× '+i[1]+'</span></span><b class="mono">'+money(DM[i[0]].p*i[1])+'</b></div>'}).join('')+
   '<div class="tot" style="margin-top:8px"><span class="dim">Tạm tính</span><b class="mono">'+money(cartSummary.subtotal)+'</b></div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Phí giao, ưu đãi và tổng tiền sẽ do máy chủ xác nhận.</p></div>'+
-  '<div class="plate ink"><div class="cap">Thanh toán đơn hàng</div><h3 class="h3" style="margin:8px 0">Đơn được xác nhận sau khi thanh toán.</h3><p style="font-size:13.5px;opacity:.85">Nếu chọn QR, bạn sẽ được chuyển tới cổng SePay để thanh toán. Đơn chỉ được chuyển đến chi nhánh sau khi hệ thống nhận xác nhận từ SePay.</p></div>'+
   '<button class="btn terra blk" data-act="place" style="padding:16px">Xác nhận đặt hàng →</button>'+
   '</aside></div>';
 }};

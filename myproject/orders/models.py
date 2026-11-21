@@ -67,7 +67,7 @@ class Order(models.Model):
 
     class PaymentMethod(models.TextChoices):
         CASH = "cod", "Tiền mặt khi nhận hàng"
-        BANK_TRANSFER = "qr", "Chuyển khoản QR (SePay)"
+        BANK_TRANSFER = "qr", "Chuyển khoản QR"
         MOMO = "momo", "Ví MoMo (mô phỏng)"
         CARD = "card", "Thẻ ngân hàng (mô phỏng)"
 
