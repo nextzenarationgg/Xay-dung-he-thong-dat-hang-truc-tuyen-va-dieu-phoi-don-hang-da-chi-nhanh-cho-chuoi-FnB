@@ -149,13 +149,10 @@ MAILERS = {
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
-<<<<<<< HEAD
-# Thêm vào cuối settings.py
-GOGODUK_API_KEY = 'gdk_test_PenhnBaG3t-l1Oq8HRz0ikEU' 
-import os
+# GoGoDuk credentials are supplied through the hosting environment.
+GOGODUK_API_KEY = os.environ.get("GOGODUK_API_KEY", "").strip()
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-=======
 
 # SePay credentials are supplied through the hosting environment, never source control.
 SEPAY_ENVIRONMENT = os.environ.get("SEPAY_ENVIRONMENT", "sandbox").strip().lower()
@@ -163,4 +160,3 @@ SEPAY_MERCHANT_ID = os.environ.get("SEPAY_MERCHANT_ID", "").strip()
 SEPAY_MERCHANT_SECRET_KEY = os.environ.get("SEPAY_MERCHANT_SECRET_KEY", "").strip()
 SEPAY_IPN_SECRET_KEY = os.environ.get("SEPAY_IPN_SECRET_KEY", "").strip()
 SEPAY_PUBLIC_BASE_URL = os.environ.get("SEPAY_PUBLIC_BASE_URL", "").strip().rstrip("/")
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
