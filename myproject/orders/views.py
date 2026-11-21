@@ -1,12 +1,9 @@
 import json
 import re
-<<<<<<< HEAD
 import os
 import secrets
 import requests
-=======
 import secrets
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from functools import wraps
@@ -17,7 +14,6 @@ from django.db.models import Count, Q
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-<<<<<<< HEAD
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
@@ -30,15 +26,12 @@ from .models import (
     Cart, CartItem, DispatchLog, Order, OrderItem, Product, ProductIngredient,
     Table, DineInOrder, DineInOrderItem
 )
-=======
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
-
 from accounts.models import BranchMembership
 from .models import Cart, CartItem, Order, OrderItem, PaymentTransaction, Product
 from .sepay import build_checkout_data, checkout_configuration_error, valid_ipn_secret
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 
 DELIVERY_FEE = 15000
 VOUCHERS = {
@@ -224,9 +217,7 @@ def branch_order_list(request):
 @branch_api
 def claim_branch_order(request, code):
     branch = request.branch_membership.branch
-    now = timezone.now()
-<<<<<<< HEAD
-    
+    now = timezone.now()    
     with transaction.atomic():
         order = Order.objects.select_for_update().filter(code=code).first()
         if not order:
@@ -260,7 +251,6 @@ def claim_branch_order(request, code):
                     ing.quantity = max(0, ing.quantity - total_deduct)
                     ing.save()
 
-=======
     claimed = Order.objects.filter(
         code=code,
         branch__isnull=True,
@@ -279,7 +269,6 @@ def claim_branch_order(request, code):
             {"error": "Đơn đã được chi nhánh khác nhận hoặc không còn chờ tiếp nhận."},
             status=409,
         )
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
     order = Order.objects.select_related("branch", "shipper").prefetch_related("items").get(code=code)
     return JsonResponse({"order": order_payload(order)})
 
@@ -533,7 +522,6 @@ def order_detail(request, code):
     )
     return JsonResponse({"order": order_payload(order)})
 
-<<<<<<< HEAD
 # ================= QUẢN LÝ NGUYÊN VẬT LIỆU =================
 @require_http_methods(["GET", "POST"])
 @branch_api
@@ -1090,7 +1078,7 @@ def admin_all_ingredients(request):
     # Lấy tất cả nguyên liệu trong hệ thống, bỏ trùng lặp tên
     ingredients = Ingredient.objects.all().values('name', 'unit').distinct().order_by('name')
     return JsonResponse({"ingredients": list(ingredients)})
-=======
+
 
 @require_POST
 @customer_api
@@ -1217,4 +1205,3 @@ def sepay_payment_return(request, result, invoice_number):
         {"payment_result": result, "order_code": payment.order.code}
     ) + "#orders"
     return HttpResponseRedirect(destination)
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)

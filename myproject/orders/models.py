@@ -133,9 +133,6 @@ class Order(models.Model):
     def __str__(self):
         return self.code
 
-<<<<<<< HEAD
-=======
-
 class PaymentTransaction(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Đang chờ"
@@ -163,7 +160,6 @@ class PaymentTransaction(models.Model):
         return self.invoice_number
 
 
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(

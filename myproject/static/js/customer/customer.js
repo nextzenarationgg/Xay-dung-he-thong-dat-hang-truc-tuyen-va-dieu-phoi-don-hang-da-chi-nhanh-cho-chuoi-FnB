@@ -206,7 +206,6 @@ ACT.usev=function(d){applyV(d.c)};
 /* ================= CUSTOMER: CHECKOUT ================= */
 V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:function(){
   if(!S.cart.length)return V.cart.html();
-<<<<<<< HEAD
   if(!S.co)S.co={};
   if(S.co.address===undefined)S.co.address='';
   if(S.co.searchQuery===undefined)S.co.searchQuery='';
@@ -214,10 +213,9 @@ V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:
 
   var pay=[['cod','Tiền mặt','Trả khi nhận hàng'],['qr','Chuyển khoản QR','Mô phỏng, không trừ tiền thật'],['momo','Ví MoMo','Mô phỏng, không trừ tiền thật'],['card','Thẻ ngân hàng','Mô phỏng, không trừ tiền thật']].map(function(p){return '<button class="'+(S.co.pay===p[0]?'on':'')+'" data-act="cpay" data-p2="'+p[0]+'"><b>'+p[1]+'</b><span>'+p[2]+'</span></button>'}).join('');
 
-=======
+
   var addrs=S.saved.map(function(k){var a=ADDR[k],md=Math.min.apply(null,BR.map(function(b){return a.d[b.id]}));return '<button class="'+(S.addr===k?'on':'')+'" data-act="caddr" data-k2="'+k+'"><b>'+esc(a.l)+'</b><span>'+esc(a.a)+'</span><span>Bếp gần nhất cách '+dec(md)+' km</span></button>'}).join('');
   var pay=[['cod','Tiền mặt','Trả khi nhận hàng'],['qr','Chuyển khoản QR','Thanh toán qua cổng SePay'],['momo','Ví MoMo','Chưa tích hợp'],['card','Thẻ ngân hàng','Chưa tích hợp']].map(function(p){return '<button class="'+(S.co.pay===p[0]?'on':'')+'" data-act="cpay" data-p2="'+p[0]+'"><b>'+p[1]+'</b><span>'+p[2]+'</span></button>'}).join('');
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
   return ph('Xác nhận đơn hàng','Giao tới <span class="it">đâu?</span>')+
   '<div class="two"><section class="col" style="gap:26px">'+
   '<div><div class="cap" style="margin-bottom:10px">Người nhận</div><div class="f2"><div class="fld"><label for="cn">Họ và tên</label><input id="cn" class="in" data-in="co_name" value="'+esc(S.co.name)+'" autocomplete="name"></div><div class="fld"><label for="cp">Số điện thoại</label><input id="cp" class="in" data-in="co_phone" value="'+esc(S.co.phone)+'" inputmode="tel" autocomplete="tel"></div></div></div>'+
@@ -249,10 +247,7 @@ V.checkout={dj:['/dat-hang/','customer/checkout.html','POST /api/orders/'],html:
   '<div><div class="cap" style="margin-bottom:10px">Phương thức thanh toán</div><div class="pay">'+pay+'</div></div></section>'+
   '<aside class="col"><div class="plate"><div class="cap" style="margin-bottom:8px">Đơn của bạn</div>'+S.cart.map(function(i){return '<div class="il"><span>'+esc(DM[i[0]].n)+' <span class="dim">× '+i[1]+'</span></span><b class="mono">'+money(DM[i[0]].p*i[1])+'</b></div>'}).join('')+
   '<div class="tot" style="margin-top:8px"><span class="dim">Tạm tính</span><b class="mono">'+money(cartSummary.subtotal)+'</b></div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Phí giao, ưu đãi và tổng tiền sẽ do máy chủ xác nhận.</p></div>'+
-<<<<<<< HEAD
-=======
   '<div class="plate ink"><div class="cap">Thanh toán đơn hàng</div><h3 class="h3" style="margin:8px 0">Đơn được xác nhận sau khi thanh toán.</h3><p style="font-size:13.5px;opacity:.85">Nếu chọn QR, bạn sẽ được chuyển tới cổng SePay để thanh toán. Đơn chỉ được chuyển đến chi nhánh sau khi hệ thống nhận xác nhận từ SePay.</p></div>'+
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
   '<button class="btn terra blk" data-act="place" style="padding:16px">Xác nhận đặt hàng →</button>'+
   '</aside></div>';
 }};
@@ -547,12 +542,11 @@ ACT.place=function(){
   }).then(function(payload){
     dbOrders.unshift(payload.order);
     S.cart=[];cartSummary={count:0,subtotal:0};S.voucher=null;S.inote={};
-<<<<<<< HEAD
     S.co.address='';S.co.searchQuery='';S.co.suggestions=[];
     S.co.lat=null;S.co.lng=null;
     var branchMsg=payload.order.branch_name?(' · Bếp: '+payload.order.branch_name):' · Đơn vào hàng chờ (ngoài bán kính 10km)';
     toast('Đã tạo đơn hàng '+payload.order.code+branchMsg);
-=======
+
     if(payload.order.payment_method==='qr'){
       toast('Đang chuyển tới cổng thanh toán SePay…');
       startSePayPayment(payload.order.code).catch(function(error){
@@ -562,7 +556,6 @@ ACT.place=function(){
       return;
     }
     toast('Đã tạo đơn hàng '+payload.order.code);
->>>>>>> cce2945 (Integrate SePay sandbox QR payments)
     go('orders');
   }).catch(reportApiError);
 };
