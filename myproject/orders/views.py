@@ -26,7 +26,7 @@ from orders.services.dispatch import is_valid_vn_coords, select_best_branch
 from .models import (
     Cart, CartItem, DispatchLog, Order, OrderItem, Product, ProductIngredient,
     Table, DineInOrder, DineInOrderItem, PaymentTransaction,
-    DineInPaymentTransaction,
+    DineInPaymentTransaction,BranchProductAvailability,
 )
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
@@ -229,10 +229,8 @@ def claim_branch_order(request, code):
         order = Order.objects.select_for_update().filter(code=code).first()
         if not order:
             return JsonResponse({"error": "Đơn hàng không tồn tại."}, status=404)
-            
         if order.branch and order.branch != branch:
             return JsonResponse({"error": "Đơn đã được chi nhánh khác nhận."}, status=409)
-            
         if order.status != Order.Status.PENDING:
             return JsonResponse({"error": "Đơn không còn chờ tiếp nhận."}, status=409)
 
@@ -242,40 +240,48 @@ def claim_branch_order(request, code):
         order.status = Order.Status.CONFIRMED
         order.save()
 
+        # Trừ kho và tự động cập nhật trạng thái món nếu hết nguyên liệu
         for item in order.items.all():
             if not item.product:
                 continue
-                
             recipes = ProductIngredient.objects.filter(product=item.product)
             for recipe in recipes:
                 ing = Ingredient.objects.select_for_update().filter(
-                    branch=branch, 
-                    name__iexact=recipe.ingredient_name
+                    branch=branch, name__iexact=recipe.ingredient_name
                 ).first()
-                
                 if ing:
                     total_deduct = recipe.quantity_per_portion * item.quantity
                     ing.quantity = max(0, ing.quantity - total_deduct)
                     ing.save()
 
+        # TỰ ĐỘNG CHUYỂN SANG "HẾT MÓN" NẾU KHÔNG ĐỦ 1 PHẦN
+        # Lấy tất cả các sản phẩm đang bán tại chi nhánh này
+        availabilities = BranchProductAvailability.objects.filter(branch=branch).select_related('product')
+        for av in availabilities:
+            if av.status == BranchProductAvailability.Status.OUT_OF_STOCK:
+                continue # Đã hết rồi thì bỏ qua
+            
+            # Kiểm tra xem có đủ nguyên liệu làm 1 phần không
+            recipes = ProductIngredient.objects.filter(product=av.product)
+            can_make = True
+            for recipe in recipes:
+                ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
+                if not ing or ing.quantity < recipe.quantity_per_portion:
+                    can_make = False
+                    break
+            
+            if not can_make:
+                av.status = BranchProductAvailability.Status.OUT_OF_STOCK
+                av.save()
+
     claimed = Order.objects.filter(
-        code=code,
-        branch__isnull=True,
-        status=Order.Status.PENDING,
-    ).filter(
-        ~Q(payment_method=Order.PaymentMethod.BANK_TRANSFER)
-        | Q(payment_status=Order.PaymentStatus.PAID),
-    ).update(
-        branch=branch,
-        accepted_by=request.user,
-        accepted_at=now,
-        status=Order.Status.CONFIRMED,
+        code=code, branch__isnull=True, status=Order.Status.PENDING,
+    ).filter(~Q(payment_method=Order.PaymentMethod.BANK_TRANSFER) | Q(payment_status=Order.PaymentStatus.PAID)).update(
+        branch=branch, accepted_by=request.user, accepted_at=now, status=Order.Status.CONFIRMED,
     )
     if not claimed:
-        return JsonResponse(
-            {"error": "Đơn đã được chi nhánh khác nhận hoặc không còn chờ tiếp nhận."},
-            status=409,
-        )
+        return JsonResponse({"error": "Đơn đã được chi nhánh khác nhận hoặc không còn chờ tiếp nhận."}, status=409)
+    
     order = Order.objects.select_related("branch", "shipper").prefetch_related("items").get(code=code)
     return JsonResponse({"order": order_payload(order)})
 
@@ -517,7 +523,12 @@ def order_list_create(request):
         breakdown=breakdown,
     )
 
-    return JsonResponse({"order": order_payload(order)}, status=201)
+    return JsonResponse({
+        "order": order_payload(order),
+        "dispatch_breakdown": breakdown,
+        "dispatch_reason": reason,
+        "dispatch_chosen_branch_name": order.branch.name if order.branch_id else None,
+    }, status=201)
 
 @require_http_methods(["GET"])
 @customer_api
@@ -667,6 +678,30 @@ def branch_inventory_save(request):
                 total_amount=total_cost,
                 details=details
             )
+
+            # ========================================================
+            # TỰ ĐỘNG QUÉT VÀ CẬP NHẬT TRẠNG THÁI MÓN SAU KHI LƯU KHO
+            # ========================================================
+            availabilities = BranchProductAvailability.objects.filter(branch=branch).select_related('product')
+            for av in availabilities:
+                # Nếu món đang "Hết" rồi thì không cần kiểm tra lại (tránh việc tự động chuyển lại thành Còn nếu kho được nhập thêm, 
+                # vì hiện tại quản lý đang set cứng trạng thái này)
+                if av.status == BranchProductAvailability.Status.OUT_OF_STOCK:
+                    continue 
+                
+                # Kiểm tra xem với lượng kho hiện tại, có đủ nguyên liệu làm 1 phần món này không
+                recipes = ProductIngredient.objects.filter(product=av.product)
+                can_make = True
+                for recipe in recipes:
+                    ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
+                    if not ing or ing.quantity < recipe.quantity_per_portion:
+                        can_make = False
+                        break
+                
+                # Nếu không đủ nguyên liệu làm 1 phần, tự động chuyển thành Hết
+                if not can_make:
+                    av.status = BranchProductAvailability.Status.OUT_OF_STOCK
+                    av.save()
 
         return JsonResponse({"ok": True, "code": code})
     except Exception as e:
@@ -1113,18 +1148,27 @@ def branch_product_update(request, code):
     if request.method == "GET":
         recipes = ProductIngredient.objects.filter(product=product)
         return JsonResponse({
-            "code": product.code, "name": product.name, "image_url": product.image.url if product.image else None,
+            "code": product.code, 
+            "name": product.name, 
+            "price": product.price, # <-- Trả thêm giá
+            "image_url": product.image.url if product.image else None,
             "recipes": [{"name": r.ingredient_name, "qty": float(r.quantity_per_portion), "unit": r.unit} for r in recipes]
         })
         
     try:
         name = request.POST.get("name", "").strip()
-        if name: product.name = name
-        if 'image' in request.FILES: product.image = request.FILES['image']
+        price = request.POST.get("price") # <-- Nhận giá từ FormData
+        if name: 
+            product.name = name
+        if price is not None:
+            product.price = int(price) # <-- Cập nhật giá
+        if 'image' in request.FILES: 
+            product.image = request.FILES['image']
+            
         product.save()
-        return JsonResponse({"ok": True, "name": product.name, "image_url": product.image.url if product.image else None})
+        return JsonResponse({"ok": True, "name": product.name, "price": product.price, "image_url": product.image.url if product.image else None})
     except Exception as e:
-        return JsonResponse({"error": f"Lỗi lưu ảnh: {str(e)}"}, status=500)
+        return JsonResponse({"error": f"Lỗi lưu thông tin: {str(e)}"}, status=500)
 
 @login_required
 @require_http_methods(["POST"])
@@ -1474,3 +1518,62 @@ def sepay_dine_in_payment_return(request, result, invoice_number):
         }
     )
     return HttpResponseRedirect(destination)
+@require_http_methods(["GET", "POST"])
+@branch_api
+def branch_product_availability(request):
+    branch = request.branch_membership.branch
+
+    if request.method == "GET":
+        # Lấy tất cả sản phẩm đang active
+        products = Product.objects.filter(is_active=True)
+        avail_map = {
+            av.product_id: av.status 
+            for av in BranchProductAvailability.objects.filter(branch=branch)
+        }
+        
+        # Lấy tất cả công thức (nguyên liệu) của các món
+        recipes = ProductIngredient.objects.filter(product__in=products)
+        recipe_map = {}
+        for r in recipes:
+            if r.product_id not in recipe_map:
+                recipe_map[r.product_id] = []
+            recipe_map[r.product_id].append({
+                "name": r.ingredient_name,
+                "qty": float(r.quantity_per_portion),
+                "unit": r.unit
+            })
+        
+        data = []
+        for p in products:
+            data.append({
+                "id": p.code,
+                "name": p.name,
+                "category": p.category,
+                "price": p.price,
+                "image_url": p.image.url if p.image else None,
+                "status": avail_map.get(p.code, BranchProductAvailability.Status.AVAILABLE),
+                "ingredients": recipe_map.get(p.code, []) # <--- Thêm trường này
+            })
+        return JsonResponse({"products": data})
+
+    # POST: Cập nhật trạng thái (giữ nguyên)
+    data, error = parse_json(request)
+    if error: return error
+    
+    product_code = data.get("product_code")
+    new_status = data.get("status")
+    
+    if new_status not in BranchProductAvailability.Status.values:
+        return JsonResponse({"error": "Trạng thái không hợp lệ."}, status=400)
+        
+    product = get_object_or_404(Product, code=product_code, is_active=True)
+    
+    av, created = BranchProductAvailability.objects.get_or_create(
+        branch=branch, product=product,
+        defaults={"status": new_status}
+    )
+    if not created:
+        av.status = new_status
+        av.save()
+        
+    return JsonResponse({"ok": True, "status": av.status})

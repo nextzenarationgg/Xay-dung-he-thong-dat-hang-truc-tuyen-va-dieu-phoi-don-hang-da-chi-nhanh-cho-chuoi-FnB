@@ -11,8 +11,8 @@ Công thức: Score = 0.50*D + 0.25*L + 0.15*R + 0.10*A (thang 0-100 mỗi thàn
 
 import math
 
-from branches.models import Branch
-from orders.models import Order
+from branches.models import Branch, Ingredient
+from orders.models import Order, ProductIngredient
 
 
 WEIGHTS = {"D": 0.50, "L": 0.25, "R": 0.15, "A": 0.10}
@@ -70,11 +70,56 @@ def _rating_score(branch):
     return 20 * adjusted
 
 
+def _has_enough_ingredients(branch, order):
+    """
+    Kiểm tra xem chi nhánh có đủ nguyên liệu để làm tất cả các món trong đơn hàng hay không.
+    Trả về True nếu đủ, False nếu thiếu bất kỳ nguyên liệu nào.
+    """
+    # Nếu order chưa được lưu vào DB (chưa có pk), hoặc không có items
+    if not order.pk:
+        # Trường hợp gọi preview (không có items thực tế trong DB), ta bỏ qua kiểm tra
+        return True
+
+    # Lấy danh sách sản phẩm và số lượng cần làm
+    product_qtys = {}
+    for item in order.items.all():
+        if item.product_id:
+            product_qtys[item.product_id] = product_qtys.get(item.product_id, 0) + item.quantity
+
+    if not product_qtys:
+        return True
+
+    # Lấy tất cả công thức của các món trong đơn
+    recipes = ProductIngredient.objects.filter(product_id__in=product_qtys.keys())
+    
+    # Tính tổng nguyên liệu cần thiết
+    required_ingredients = {}
+    for recipe in recipes:
+        qty_needed = float(recipe.quantity_per_portion) * product_qtys[recipe.product_id]
+        key = recipe.ingredient_name.lower()
+        required_ingredients[key] = required_ingredients.get(key, 0.0) + qty_needed
+
+    if not required_ingredients:
+        return True
+
+    # Lấy kho hiện tại của chi nhánh
+    branch_ingredients = {
+        ing.name.lower(): float(ing.quantity) 
+        for ing in Ingredient.objects.filter(branch=branch)
+    }
+
+    # Kiểm tra xem có đủ từng loại nguyên liệu không
+    for ing_name, qty_needed in required_ingredients.items():
+        # Nếu kho không có nguyên liệu này, hoặc số lượng ít hơn cần thiết -> False
+        if branch_ingredients.get(ing_name, 0.0) < qty_needed:
+            return False
+            
+    return True
+
+
 def select_best_branch(order, debug=False):
     """
     Trả về tuple (branch_or_none, reason, breakdown_dict).
-
-    reason ∈ {"ok", "missing_coordinates", "invalid_coordinates", "no_candidate"}
     """
     if order.delivery_lat is None or order.delivery_lng is None:
         return None, "missing_coordinates", {}
@@ -84,74 +129,76 @@ def select_best_branch(order, debug=False):
     if not is_valid_vn_coords(lat, lng):
         return None, "invalid_coordinates", {}
 
-    candidates = Branch.objects.filter(
-        is_active=True,
-        is_accepting_orders=True,
-        latitude__isnull=False,
-        longitude__isnull=False,
-    )
+    candidates = Branch.objects.filter(is_active=True) # Lấy tất cả chi nhánh đang active
 
     scored = []
     for branch in candidates:
+        # 1. Kiểm tra nguyên liệu
+        has_ingredients = _has_enough_ingredients(branch, order)
+        
+        # 2. Kiểm tra tải
         load = _active_load(branch)
         capacity = branch.max_capacity or 0
-        if capacity <= 0 or load >= capacity:
-            continue
+        is_overloaded = (capacity <= 0 or load >= capacity)
+        
+        # 3. Kiểm tra khoảng cách
+        dist = haversine_km(lat, lng, float(branch.latitude) if branch.latitude else 0, float(branch.longitude) if branch.longitude else 0)
+        is_too_far = dist > MAX_DISTANCE_KM
+        
+        # 4. Kiểm tra trạng thái nhận đơn
+        is_accepting = branch.is_accepting_orders
 
-        dist = haversine_km(lat, lng, float(branch.latitude), float(branch.longitude))
-        if dist > MAX_DISTANCE_KM:
-            continue
-
+        # Đánh giá xem chi nhánh có hợp lệ không
+        is_valid = has_ingredients and not is_overloaded and not is_too_far and is_accepting
+        
+        reason = None
+        if not is_accepting: reason = "Tạm ngưng nhận đơn"
+        elif is_too_far: reason = f"Ngoài bán kính {MAX_DISTANCE_KM}km"
+        elif not has_ingredients: reason = "Thiếu nguyên liệu"
+        elif is_overloaded: reason = "Quá tải"
+        
         D = _distance_score(dist)
-        L = 100.0 * (1 - load / capacity)
+        L = 100.0 * (1 - load / capacity) if capacity > 0 else 0
         R = _rating_score(branch)
-        A = 100.0
+        A = 100.0 if is_accepting else 0
 
-        score = (WEIGHTS["D"] * D + WEIGHTS["L"] * L
-                 + WEIGHTS["R"] * R + WEIGHTS["A"] * A)
+        score = (WEIGHTS["D"] * D + WEIGHTS["L"] * L + WEIGHTS["R"] * R + WEIGHTS["A"] * A) if is_valid else 0
 
         scored.append({
-            "branch": branch, "score": score,
+            "branch": branch, 
+            "score": score,
             "D": D, "L": L, "R": R, "A": A,
             "distance_km": round(dist, 3),
-            "load": load, "max_capacity": capacity,
+            "load": load, 
+            "max_capacity": capacity,
+            "is_valid": is_valid,
+            "reason": reason,
+            "pct_load": round(load / capacity * 100) if capacity > 0 else 0
         })
 
-    if not scored:
-        return None, "no_candidate", {}
+    # Sắp xếp: Hợp lệ lên trước, sau đó đến điểm cao, sau đó đến gần hơn
+    scored.sort(key=lambda x: (not x["is_valid"], -x["score"], x["distance_km"]))
 
-    scored.sort(key=lambda x: (-x["score"], x["distance_km"]))
-    best = scored[0]
+    valid_branches = [c for c in scored if c["is_valid"]]
+    best = valid_branches[0] if valid_branches else None
 
     breakdown = {
-        "chosen_branch_id": best["branch"].pk,
-        "score": round(best["score"], 2),
-        "D": round(best["D"], 2),
-        "L": round(best["L"], 2),
-        "R": round(best["R"], 2),
-        "A": round(best["A"], 2),
-        "distance_km": best["distance_km"],
-        "load": best["load"],
-        "max_capacity": best["max_capacity"],
+        "chosen_branch_id": best["branch"].pk if best else None,
+        "score": round(best["score"], 2) if best else 0,
+        "distance_km": best["distance_km"] if best else 0,
         "candidates": [
             {
                 "branch_id": c["branch"].pk,
                 "branch_name": c["branch"].name,
+                "address": c["branch"].address,
                 "score": round(c["score"], 2),
                 "distance_km": c["distance_km"],
-                "D": round(c["D"], 2),
-                "R": round(c["R"], 2),
+                "is_valid": c["is_valid"],
+                "reason": c["reason"],
+                "pct_load": c["pct_load"]
             }
             for c in scored
         ],
     }
 
-    if debug:
-        print(f"\n=== DISPATCH DEBUG order={order.code} ===")
-        print(f"  Khách @ ({lat:.4f}, {lng:.4f})")
-        for c in scored:
-            print(f"  {c['branch'].name:30s} | d={c['distance_km']:.2f}km | "
-                  f"D={c['D']:5.1f} L={c['L']:5.1f} R={c['R']:5.1f} | score={c['score']:.2f}")
-        print(f"  → Chọn: {best['branch'].name} (score={best['score']:.2f})\n")
-
-    return best["branch"], "ok", breakdown
+    return (best["branch"] if best else None), ("ok" if best else "no_candidate"), breakdown

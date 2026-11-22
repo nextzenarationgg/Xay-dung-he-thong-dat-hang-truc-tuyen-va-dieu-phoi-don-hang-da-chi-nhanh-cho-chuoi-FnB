@@ -8,6 +8,7 @@ var branchTables=[];
 var branchDineInOrders=[];
 var branchSelectedTablePaymentMethod=null;
 var branchPurchaseHistory=[]; // Biến lưu lịch sử nhập hàng
+var branchProductsAvailability = []; // Biến lưu trạng thái món ăn thật từ DB
 
 S.dineTab = S.dineTab || 'all'; 
 S.invPending = {}; // { id: { qty, action, price } }
@@ -44,6 +45,14 @@ function loadBranchOrders(){
     branchOrdersError=error.message||'Không thể tải đơn hàng chi nhánh.';
     toast(branchOrdersError);
   });
+}
+
+function loadBranchProductsAvailability() {
+    return branchRequest('/api/branch/product-availability/', 'GET').then(function(payload) {
+        branchProductsAvailability = payload.products;
+    }).catch(function(error) {
+        console.error('Lỗi tải trạng thái món:', error);
+    });
 }
 
 function loadBranchIngredients(){
@@ -219,7 +228,7 @@ function branchAction(url,data,successMessage){
   branchActionVersion++;
   branchRequest(url,'POST',data).then(function(){
     toast(successMessage);
-    return Promise.all([loadBranchOrders(), loadBranchIngredients(), loadBranchHistory(), loadDineInOrders(), loadPurchaseHistory()]);
+    return Promise.all([loadBranchOrders(), loadBranchIngredients(), loadBranchHistory(), loadDineInOrders(), loadPurchaseHistory(), loadBranchProductsAvailability()]);
   }).then(function(){branchActionPending=false;render()}).catch(function(error){
     branchActionPending=false;
     toast(error.message||'Không thể cập nhật đơn hàng.');
@@ -235,11 +244,13 @@ function pollBranchOrders(){
   var previousOrders=JSON.stringify([branchData,branchOrders,branchShippers,branchOrdersError]);
   var previousIngredients=JSON.stringify(branchIngredients);
   var previousDineIn=JSON.stringify(branchDineInOrders);
+  var previousAvailability=JSON.stringify(branchProductsAvailability);
   
   Promise.all([
     branchRequest('/api/branch/orders/','GET'),
     branchRequest('/api/branch/ingredients/','GET'),
-    branchRequest('/api/branch/dine-in-orders/','GET')
+    branchRequest('/api/branch/dine-in-orders/','GET'),
+    branchRequest('/api/branch/product-availability/','GET')
   ]).then(function(results){
     if(actionVersion!==branchActionVersion)return;
     
@@ -255,10 +266,14 @@ function pollBranchOrders(){
 
     var payloadDineIn = results[2];
     branchDineInOrders = payloadDineIn.orders;
+
+    var payloadAvailability = results[3];
+    branchProductsAvailability = payloadAvailability.products;
     
     var currentOrders=JSON.stringify([branchData,branchOrders,branchShippers,branchOrdersError]);
     var currentIngredients=JSON.stringify(branchIngredients);
     var currentDineIn=JSON.stringify(branchDineInOrders);
+    var currentAvailability=JSON.stringify(branchProductsAvailability);
     
     var needRender = false;
     
@@ -274,6 +289,9 @@ function pollBranchOrders(){
         }
     }
     if(previousDineIn!==currentDineIn && ['b-dine-in','b-dash','b-tables','b-orders','b-ship','b-menu','b-inv','b-history','b-purchase-history'].indexOf(S.key)>-1){
+        needRender = true;
+    }
+    if(previousAvailability!==currentAvailability && ['b-menu'].indexOf(S.key)>-1){
         needRender = true;
     }
     
@@ -358,7 +376,7 @@ ACT.cleardel = function() {
 ACT.bst=function(d){S.bst=d.s;render()};
 ACT.bsel=function(d){S.bsel=d.no;render()};
 V['b-orders'].html=branchOrderPage;
-ACT.brefresh=function(){Promise.all([loadBranchOrders(),loadBranchIngredients(),loadBranchHistory(),loadDineInOrders(),loadBranchTables(),loadPurchaseHistory()]).then(function(){render()})};
+ACT.brefresh=function(){Promise.all([loadBranchOrders(),loadBranchIngredients(),loadBranchHistory(),loadDineInOrders(),loadBranchTables(),loadPurchaseHistory(),loadBranchProductsAvailability()]).then(function(){render()})};
 ACT.bclaim=function(d){
   branchAction('/api/branch/orders/'+encodeURIComponent(d.no)+'/claim/',undefined,'Chi nhánh đã nhận đơn.');
 };
@@ -621,29 +639,69 @@ ACT.clearpur = function() {
 
 /* ---- branch menu ---- */
 V['b-menu']={dj:['/chi-nhanh/thuc-don/','branch/menu_availability.html','BranchMenuView'],html:function(){
-  var b=BM[S.br],q=fold(S.bmq.trim()),l=D.filter(function(d){return !q||fold(d.n).indexOf(q)>-1});
+  var b=BM[S.br], q=fold(S.bmq?S.bmq.trim():'');
   var branchLabel=app.getAttribute('data-branch-name')||b.n;
-  var cnt={on:0,low:0,off:0};D.forEach(function(d){cnt[d.global?AV[b.id][d.id]:'off']++});
-  var seg=function(d,v,t){var cur=AV[b.id][d.id]===v;return '<button class="'+(cur?'on':'')+'" data-act="avset" data-id="'+d.id+'" data-v="'+v+'"'+(d.global?'':' disabled')+'>'+t+'</button>'};
+  
+  // Dùng dữ liệu từ API thay vì biến AV giả lập
+  var l = branchProductsAvailability.filter(function(p){ return !q || fold(p.name).indexOf(q)>-1 });
+  
+  var cnt={on:0,low:0,off:0};
+  branchProductsAvailability.forEach(function(p){
+      if(cnt[p.status] !== undefined) cnt[p.status]++;
+  });
+  
+  var seg=function(p,v,t){
+      var cur = p.status === v;
+      return '<button class="'+(cur?'on':'')+'" data-act="avset" data-id="'+p.id+'" data-v="'+v+'">'+t+'</button>';
+  };
 
   return ph('CHI NHÁNH '+esc(branchLabel.toLocaleUpperCase('vi-VN')),'Thực đơn <span class="it">chi nhánh</span>')+
   '<div class="bento" style="margin-bottom:22px"><div class="plate s3"><div class="kpi"><span class="cap">Đang bán</span><span class="num">'+cnt.on+'</span></div></div><div class="plate s3"><div class="kpi"><span class="cap">Sắp hết</span><span class="num">'+cnt.low+'</span></div></div><div class="plate s3"><div class="kpi"><span class="cap">Hết hàng</span><span class="num">'+cnt.off+'</span></div></div>'+
   '<div class="plate sunk s3"><div class="cap">Hai lớp trạng thái</div><p style="font-size:12.5px;margin-top:6px"><b>Toàn chuỗi</b> do quản trị đặt. <b>Tại chi nhánh</b> do bếp quản lý.</p></div></div>'+
-  '<div class="fld" style="max-width:340px;margin-bottom:16px"><label for="bmq">Tìm món</label><input id="bmq" class="in" type="search" data-in="bmq" value="'+esc(S.bmq)+'" placeholder="Tên món…"></div>'+
-  '<section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th class="tr">Giá chuỗi</th><th>Toàn chuỗi</th><th>Tại chi nhánh</th></tr></thead><tbody>'+
-  l.map(function(d){
+  '<div class="fld" style="max-width:340px;margin-bottom:16px"><label for="bmq">Tìm món</label><input id="bmq" class="in" type="search" data-in="bmq" value="'+esc(S.bmq||'')+'" placeholder="Tên món…"></div>'+
+  '<section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th class="tr">Giá chuỗi</th><th>Nguyên liệu (1 phần)</th><th>Tại chi nhánh</th></tr></thead><tbody>'+
+  (l.length ? l.map(function(d){
     var imgHtml = d.image_url ? '<img src="'+d.image_url+'" style="width:44px;height:44px;object-fit:cover;border-radius:4px">' : '<div class="art" style="width:44px;height:44px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+art(d.id)+'</div>';
+    
+    // Render danh sách nguyên liệu
+    var ingHtml = '';
+    if (d.ingredients && d.ingredients.length > 0) {
+        ingHtml = d.ingredients.map(function(ing){
+            return '<div style="font-size:12px; white-space:nowrap;">- ' + esc(ing.name) + ': <b>' + ing.qty + ' ' + esc(ing.unit) + '</b></div>';
+        }).join('');
+    } else {
+        ingHtml = '<span class="dim" style="font-size:12px;">Chưa có công thức</span>';
+    }
+
     return '<tr>'+
-      '<td><div class="row" style="flex-wrap:nowrap">'+imgHtml+'<b class="nm">'+esc(d.n)+'</b></div></td>'+
-      '<td>'+CATN[d.c]+'</td>'+
-      '<td class="tr mono">'+money(d.p)+'</td>'+
-      '<td>'+(d.global?pill('Đang bán','ok'):pill('Quản trị ngưng','bad'))+'</td>'+
-      '<td><div class="seg" style="'+(d.global?'':'opacity:.4')+'">'+seg(d,'on','Còn')+seg(d,'low','Sắp hết')+seg(d,'off','Hết')+'</div></td>'+
+      '<td><div class="row" style="flex-wrap:nowrap">'+imgHtml+'<b class="nm">'+esc(d.name)+'</b></div></td>'+
+      '<td>'+ (CATN[d.category] || d.category) +'</td>'+
+      '<td class="tr mono">'+money(d.price)+'</td>'+
+      '<td>'+ingHtml+'</td>'+
+      '<td><div class="seg">'+seg(d,'on','Còn')+seg(d,'low','Sắp hết')+seg(d,'off','Hết')+'</div></td>'+
     '</tr>';
-  }).join('')+'</tbody></table></div></section>';
+  }).join('') : '<tr><td colspan="5"><div class="empty">Không có món nào.</div></td></tr>')+
+  '</tbody></table></div></section>';
 }};
 INP.bmq=function(v){S.bmq=v;render()};
-ACT.avset=function(d){AV[S.br][d.id]=d.v;toast(DM[d.id].n+' tại '+BM[S.br].n+': '+({on:'còn hàng',low:'sắp hết',off:'hết hàng, điều phối sẽ loại bếp này với món này'})[d.v]);render()};
+
+ACT.avset=function(d){
+  var newStatus = d.v;
+  branchRequest('/api/branch/product-availability/', 'POST', {
+      product_code: d.id,
+      status: newStatus
+  }).then(function(payload) {
+      // Cập nhật lại mảng local
+      var prod = branchProductsAvailability.filter(function(p){ return p.id === d.id })[0];
+      if(prod) prod.status = payload.status;
+      
+      var msgMap = {on: 'còn hàng', low: 'sắp hết', off: 'hết hàng'};
+      toast('Đã chuyển món sang trạng thái: ' + msgMap[payload.status]);
+      render();
+  }).catch(function(error) {
+      toast('Lỗi cập nhật trạng thái: ' + error.message);
+  });
+};
 
 /* ---- branch inventory ---- */
 function stepOf(u){return {kg:1,'hộp':5,'lọ':5,'bìa':10,'quả':12,'cái':50}[u]||1}
@@ -807,7 +865,7 @@ window.confirmSaveInv = function() {
         toast('Đã lưu thay đổi kho hàng (Mã: '+res.code+').');
         S.invPending = {}; 
         document.getElementById('save-inv-modal').remove();
-        Promise.all([loadBranchIngredients(), loadPurchaseHistory()]).then(function(){ render(); });
+        Promise.all([loadBranchIngredients(), loadPurchaseHistory(), loadBranchProductsAvailability()]).then(function(){ render(); });
     }).catch(function(err) {
         toast('Lỗi lưu kho: ' + err.message);
         btn.innerText = 'Xác nhận Lưu';
@@ -1206,7 +1264,8 @@ Promise.all([
   loadBranchHistory(),
   loadBranchTables(),
   loadDineInOrders(),
-  loadPurchaseHistory() // Gọi hàm tải lịch sử nhập hàng
+  loadPurchaseHistory(),
+  loadBranchProductsAvailability() // Thêm hàm load trạng thái món
 ]).then(function(){
   initApp();
   branchUIReady=true;

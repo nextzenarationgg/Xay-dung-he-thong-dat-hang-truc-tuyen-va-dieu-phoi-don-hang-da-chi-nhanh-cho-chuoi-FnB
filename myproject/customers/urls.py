@@ -27,6 +27,8 @@ urlpatterns = [
     path("api/branch/orders/", order_views.branch_order_list, name="branch_order_list"),
     path('api/admin/ingredients/', admin_all_ingredients, name='admin_all_ingredients'),
     path('qr-menu/<uuid:qr_code>/', views_prototype.qr_menu, name='qr_menu'),
+
+    path("api/branch/product-availability/", order_views.branch_product_availability, name="branch_product_availability"),
     
     # API Địa chỉ
     path('api/gogoduk/suggest/', gogoduk_proxy_suggest, name='gogoduk_suggest'),

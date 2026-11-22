@@ -116,8 +116,9 @@ V['a-prod']={dj:['/quan-tri/mon-an/','admin/products.html','ProductAdminView + C
   CATS.map(function(c){return '<div class="row" style="flex-wrap:nowrap;margin-bottom:6px"><button class="chip grow'+(S.aPc===c[0]?' on':'')+'" style="text-align:left" data-act="apc" data-c="'+c[0]+'">'+c[1]+'<span class="n">'+D.filter(function(d){return d.c===c[0]}).length+'</span></button><button class="sw'+(S.catHide[c[0]]?'':' on')+'" data-act="chide" data-c="'+c[0]+'" aria-label="Hiển thị danh mục '+c[1]+'"></button></div>'}).join('')+'</div><p class="mono dim" style="font-size:11.5px;margin-top:10px">Công tắc: hiển thị danh mục trên thực đơn khách.</p></section>'+
   '<section class="plate s9 tight"><div class="row" style="padding:6px 8px"><div class="fld grow" style="max-width:320px"><label for="pq">Tìm món</label><input id="pq" class="in" type="search" data-in="apq" value="'+esc(S.apq)+'" placeholder="Tên món…"></div></div><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th>Giá (đ)</th><th>Bán toàn chuỗi</th><th>Chi nhánh đang bán</th><th>Thao tác</th></tr></thead><tbody>'+
   l.map(function(d){
-    // Thêm nút Sửa ở đây
-    return '<tr><td><div class="row" style="flex-wrap:nowrap"><div class="art" style="width:52px;height:52px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+ (d.image_url ? '<img src="'+d.image_url+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : art(d.id)) +'</div><div><b class="nm">'+esc(d.n)+'</b><div class="sub">'+esc(d.sub)+'</div></div></div></td><td>'+CATN[d.c]+'</td><td><input class="in" style="width:104px;padding:7px 8px" type="number" step="1000" min="0" value="'+d.p+'" data-in="price" data-id="'+d.id+'" aria-label="Giá '+esc(d.n)+'"></td><td><button class="sw'+(d.global?' on':'')+'" data-act="gtoggle" data-id="'+d.id+'" aria-label="Bán toàn chuỗi '+esc(d.n)+'"></button></td><td class="mono">'+dishBranches(d.id)+' / 5</td><td><button class="btn sm ghost" data-act="admin-edit-product" data-code="'+d.id+'">Sửa</button></td></tr>'
+    var imgSrc = d.image_url ? d.image_url + '?t=' + Date.now() : null;
+    var imgHtml = imgSrc ? '<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px">' : art(d.id);
+    return '<tr><td><div class="row" style="flex-wrap:nowrap"><div class="art" style="width:52px;height:52px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+ imgHtml +'</div><div><b class="nm">'+esc(d.n)+'</b><div class="sub">'+esc(d.sub)+'</div></div></div></td><td>'+CATN[d.c]+'</td><td class="mono"><b>'+money(d.p)+'</b></td><td><button class="sw'+(d.global?' on':'')+'" data-act="gtoggle" data-id="'+d.id+'" aria-label="Bán toàn chuỗi '+esc(d.n)+'"></button></td><td class="mono">'+dishBranches(d.id)+' / 5</td><td><button class="btn sm ghost" data-act="admin-edit-product" data-code="'+d.id+'">Sửa</button></td></tr>'
   }).join('')+'</tbody></table></div></section>'+
   '<section class="plate s12 sunk"><div class="cap" style="margin-bottom:10px">Thêm món mới</div><div class="row" style="align-items:flex-end"><div class="fld grow" style="min-width:200px"><label for="nn">Tên món</label><input id="nn" class="in" placeholder="Ví dụ: Cơm thố gà xối mỡ"></div><div class="fld"><label for="np">Giá (đ)</label><input id="np" class="in" type="number" step="1000" value="55000" style="width:130px"></div><div class="fld"><label for="nc">Danh mục</label><select id="nc" class="in">'+CATS.map(function(c){return '<option value="'+c[0]+'">'+c[1]+'</option>'}).join('')+'</select></div><button class="btn terra" data-act="adddish">Thêm món</button></div></section></div>';
 }};
@@ -248,62 +249,87 @@ ACT.cfgsave=function(){toast('Đã lưu: khoảng cách '+RULES.wd+', tải '+RU
 /* ================= ADMIN: CHỈNH SỬA MÓN ĂN (MODAL) ================= */
 ACT['admin-edit-product'] = function(d) {
   var code = d.code;
-  var modalHtml = `
-    <div id="edit-product-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
-      <div style="background:white;border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px;position:relative;">
-        <button id="close-modal" style="position:absolute;top:15px;right:15px;background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
-        <h2 style="margin-top:0;margin-bottom:20px;">Chỉnh sửa món ăn (Toàn hệ thống)</h2>
-        
-        <form id="edit-product-form" onsubmit="event.preventDefault();">
-          <div class="fld">
-            <label>Tên món ăn</label>
-            <input type="text" id="ep-name" class="in" style="width:100%;border:1px solid #ddd;padding:10px;border-radius:6px;" required>
-          </div>
-          
-          <div class="fld" style="margin-top:15px;">
-            <label>Ảnh món ăn (Tùy chọn)</label>
-            <input type="file" id="ep-image" accept="image/*" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
-          </div>
+  
+  fetch('/api/admin/ingredients/', { credentials: 'same-origin' })
+  .then(r => r.json())
+  .then(function(ingData) {
+    if (ingData.error) throw new Error(ingData.error);
+    window.currentIngredientsList = ingData.ingredients || []; 
 
-          <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
-          
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h3 style="margin:0;font-size:16px;">Định lượng nguyên liệu (1 phần)</h3>
-            <button type="button" class="btn sm terra" onclick="adminAddRecipeRow()">+ Thêm NVL</button>
-          </div>
-          <div id="ep-recipes-container" style="display:flex;flex-direction:column;gap:10px;"></div>
+    var datalistHtml = '<datalist id="edit-ingredients-list">';
+    window.currentIngredientsList.forEach(function(ing) {
+      datalistHtml += '<option value="' + ing.name + '">' + ing.unit + '</option>';
+    });
+    datalistHtml += '</datalist>';
 
-          <div style="margin-top:30px;text-align:right;">
-            <button type="button" class="btn ghost" onclick="document.getElementById('edit-product-modal').remove()">Hủy</button>
-            <button type="button" class="btn terra" id="save-product-btn" onclick="adminSaveProduct('${code}')">Lưu thay đổi</button>
-          </div>
-        </form>
+    var modalHtml = `
+      <div id="edit-product-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+        ${datalistHtml}
+        <div style="background:white;border-radius:12px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;padding:20px;position:relative;">
+          <button id="close-modal" style="position:absolute;top:15px;right:15px;background:none;border:none;font-size:24px;cursor:pointer;">&times;</button>
+          <h2 style="margin-top:0;margin-bottom:20px;">Chỉnh sửa món ăn (Toàn hệ thống)</h2>
+          
+          <form id="edit-product-form" onsubmit="event.preventDefault();">
+            <div class="fld">
+              <label>Tên món ăn</label>
+              <input type="text" id="ep-name" class="in" style="width:100%;border:1px solid #ddd;padding:10px;border-radius:6px;" required>
+            </div>
+
+            <div class="fld" style="margin-top:15px;">
+              <label>Giá bán (VNĐ)</label>
+              <input type="number" id="ep-price" class="in" style="width:100%;border:1px solid #ddd;padding:10px;border-radius:6px;" step="1000" min="0" required>
+            </div>
+            
+            <div class="fld" style="margin-top:15px;">
+              <label>Ảnh món ăn (Tùy chọn)</label>
+              <input type="file" id="ep-image" accept="image/*" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+            </div>
+
+            <hr style="margin:20px 0;border:none;border-top:1px solid #eee;">
+            
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+              <h3 style="margin:0;font-size:16px;">Định lượng nguyên liệu (1 phần)</h3>
+              <button type="button" class="btn sm terra" onclick="adminAddRecipeRow()">+ Thêm NVL</button>
+            </div>
+            <div id="ep-recipes-container" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+            <div style="margin-top:30px;text-align:right;">
+              <button type="button" class="btn ghost" onclick="document.getElementById('edit-product-modal').remove()">Hủy</button>
+              <button type="button" class="btn terra" id="save-product-btn" onclick="adminSaveProduct('${code}')">Lưu thay đổi</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  `;
-  
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-  
-  document.getElementById('close-modal').onclick = function() {
-    document.getElementById('edit-product-modal').remove();
-  };
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    document.getElementById('close-modal').onclick = function() {
+      document.getElementById('edit-product-modal').remove();
+    };
 
-  fetch('/api/branch/products/' + code + '/update/', { credentials: 'same-origin' })
+    return fetch('/api/branch/products/' + code + '/update/', { credentials: 'same-origin' });
+  })
   .then(r => r.json())
   .then(function(data) {
     if(data.error) throw new Error(data.error);
     document.getElementById('ep-name').value = data.name;
+    document.getElementById('ep-price').value = data.price; // <-- Điền giá hiện tại
+    
     var container = document.getElementById('ep-recipes-container');
     container.innerHTML = '';
     
     if (data.recipes && data.recipes.length > 0) {
-      data.recipes.forEach(function(r) { adminAddRecipeRow(r.name, r.qty, r.unit); });
+      data.recipes.forEach(function(r) { 
+        adminAddRecipeRow(r.name, r.qty, r.unit); 
+      });
     } else {
-      adminAddRecipeRow('', '', '');
+      adminAddRecipeRow();
     }
   }).catch(function(err) {
-    toast('Lỗi tải thông tin món: ' + err.message);
-    document.getElementById('edit-product-modal').remove();
+    toast('Lỗi tải thông tin: ' + err.message);
+    var m = document.getElementById('edit-product-modal');
+    if(m) m.remove();
   });
 };
 
@@ -316,45 +342,66 @@ function adminAddRecipeRow(name = '', qty = '', unit = '') {
   div.style.alignItems = 'center';
 
   div.innerHTML = `
-    <input type="text" class="in recipe-name" value="${name}" placeholder="Tên NVL (VD: Thịt bò)" style="flex:2;padding:8px;border:1px solid #ddd;border-radius:6px;">
+    <input list="edit-ingredients-list" class="in recipe-name" value="${name}" placeholder="Gõ hoặc chọn NVL..." style="flex:2;padding:8px;border:1px solid #ddd;border-radius:6px;" oninput="adminUpdateRecipeUnit(this)">
     <input type="number" class="in recipe-qty" value="${qty}" step="0.001" min="0" placeholder="SL" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;">
-    <input type="text" class="in recipe-unit" value="${unit}" placeholder="ĐV (kg...)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;">
+    <input type="text" class="in recipe-unit" value="${unit}" placeholder="ĐV" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:6px;" readonly>
     <button type="button" class="btn sm ghost" style="color:red;padding:8px;" onclick="this.parentElement.remove()">Xóa</button>
   `;
   container.appendChild(div);
 }
+
+// Hàm tự động điền đơn vị khi chọn/gõ nguyên liệu
+window.adminUpdateRecipeUnit = function(inputEl) {
+  var selectedName = inputEl.value;
+  var row = inputEl.parentElement;
+  var unitInput = row.querySelector('.recipe-unit');
+  
+  if (window.currentIngredientsList) {
+      var matched = window.currentIngredientsList.find(function(ing) {
+          return ing.name.toLowerCase() === selectedName.toLowerCase();
+      });
+      if (matched && matched.unit) {
+          unitInput.value = matched.unit;
+      } else {
+          unitInput.value = ''; // Nếu gõ sai tên thì xóa trắng đơn vị
+      }
+  }
+};
 
 function adminSaveProduct(code) {
   var btn = document.getElementById('save-product-btn');
   btn.innerText = 'Đang lưu...';
   btn.disabled = true;
 
+  var newName = document.getElementById('ep-name').value;
+  var newPrice = parseInt(document.getElementById('ep-price').value, 10) || 0;
+
   var formData = new FormData();
-  formData.append('name', document.getElementById('ep-name').value);
+  formData.append('name', newName);
+  formData.append('price', newPrice); 
   
   var fileInput = document.getElementById('ep-image');
   if (fileInput.files.length > 0) {
     formData.append('image', fileInput.files[0]);
   }
 
-  // Tìm CSRF token từ thẻ input (đảm bảo trong admin.html có {% csrf_token %})
   var csrf = document.querySelector('input[name="csrfmiddlewaretoken"]');
   var headers = { 'X-CSRFToken': csrf ? csrf.value : '' };
 
+  // 1. Lưu thông tin (Tên, Giá, Ảnh)
   fetch('/api/branch/products/' + code + '/update/', {
     method: 'POST',
     headers: headers,
     body: formData
   })
   .then(r => {
-    if (!r.ok) {
-       return r.text().then(text => { throw new Error("Lỗi Server: " + text.substring(0, 100)); });
-    }
+    if (!r.ok) return r.text().then(text => { throw new Error("Lỗi Server: " + text); });
     return r.json();
   })
   .then(data => {
     if (data.error) throw new Error(data.error);
     
+    // 2. Lưu công thức nguyên liệu
     var recipes = [];
     document.querySelectorAll('#ep-recipes-container .recipe-row').forEach(function(row) {
       var name = row.querySelector('.recipe-name').value.trim();
@@ -376,10 +423,31 @@ function adminSaveProduct(code) {
   })
   .then(data => {
     if (data.error) throw new Error(data.error);
-    toast('Đã lưu thay đổi món ăn!');
+    
+    // 3. GỌI API LẤY LẠI TOÀN BỘ DỮ LIỆU MỚI NHẤT
+    return fetch('/api/products/', { credentials: 'same-origin' });
+  })
+  .then(r => r.json())
+  .then(data => {
+    // 4. TỰ CẬP NHẬT DỮ LIỆU (BAO GỒM CẢ ẢNH)
+    if (data.products) {
+      data.products.forEach(function(product) {
+        var dish = DM[product.code];
+        if (dish) {
+          dish.n = product.name;
+          dish.c = product.category;
+          dish.p = product.price;
+          dish.sub = product.description;
+          dish.image_url = product.image_url; // <-- Cập nhật URL ảnh mới
+        }
+      });
+    }
+
+    toast('Đã lưu thay đổi và cập nhật dữ liệu!');
     document.getElementById('edit-product-modal').remove();
     
-    setTimeout(() => location.reload(), 800);
+    // 5. Vẽ lại giao diện
+    render(); 
   })
   .catch(err => {
     console.error("Lỗi:", err);

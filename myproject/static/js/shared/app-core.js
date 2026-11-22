@@ -262,7 +262,10 @@ function gateMatrix(res){
 }
 function dishCard(d){
   var n=dishBranches(d.id),off=n===0;
-  return '<article class="dish'+(off?' off':'')+'" data-act="dish" data-id="'+d.id+'" tabindex="0"><div class="art">'+art(d.id)+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div><div class="db"><div class="dn">'+esc(d.n)+'</div><div class="ds">'+esc(d.sub)+'</div><div class="dr"><span class="price">'+money(d.p)+'</span>'+(off?pill('Tạm hết','bad'):'<button class="btn sm" data-act="add" data-id="'+d.id+'">+ Thêm</button>')+'</div><div class="av"><span class="dot'+(n<3?' warn':'')+(off?' bad':'')+'"></span>'+(off?'Hết ở mọi chi nhánh':'Còn tại '+n+'/5 chi nhánh')+'</div></div></article>';
+  var imgSrc = d.image_url ? (window.location.origin + d.image_url + '?t=' + Date.now()) : null;
+  var artHtml = imgSrc ? '<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover;">' : art(d.id);
+  
+  return '<article class="dish'+(off?' off':'')+'" data-act="dish" data-id="'+d.id+'" tabindex="0"><div class="art">'+artHtml+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div><div class="db"><div class="dn">'+esc(d.n)+'</div><div class="ds">'+esc(d.sub)+'</div><div class="dr"><span class="price">'+money(d.p)+'</span>'+(off?pill('Tạm hết','bad'):'<button class="btn sm" data-act="add" data-id="'+d.id+'">+ Thêm</button>')+'</div><div class="av"><span class="dot'+(n<3?' warn':'')+(off?' bad':'')+'"></span>'+(off?'Hết ở mọi chi nhánh':'Còn tại '+n+'/5 chi nhánh')+'</div></div></article>';
 }
 function advance(o,who){
   if(o.st<0||o.st>=5)return false;

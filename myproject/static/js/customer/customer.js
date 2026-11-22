@@ -48,6 +48,7 @@ function applyCatalog(products){
       dish.c=product.category;
       dish.p=product.price;
       dish.sub=product.description;
+      dish.image_url=product.image_url; 
     }
   });
 }
@@ -158,8 +159,13 @@ ACT.monly=function(){S.onlyAvail=!S.onlyAvail;render()};
 V.dish={dj:['/thuc-don/<slug:dish>/','customer/dish_detail.html','DishDetailView'],html:function(){
   var d=DM[S.par]||D[0],n=dishBranches(d.id),off=n===0;
   var rel=D.filter(function(x){return x.c!==d.c}).sort(function(a,b){return a.pop-b.pop}).slice(0,3);
+  
+  // KIỂM TRA VÀ LẤY ẢNH THẬT
+  var imgSrc = d.image_url ? (window.location.origin + d.image_url + '?t=' + Date.now()) : null;
+  var artHtml = imgSrc ? '<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover;">' : art(d.id);
+
   return '<div class="row" style="margin-bottom:18px"><button class="btn ghost sm" data-act="go" data-k="menu">← Thực đơn</button><span class="cap">'+CATN[d.c]+'</span></div>'+
-  '<div class="dd"><div class="art">'+art(d.id)+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div>'+
+  '<div class="dd"><div class="art">'+artHtml+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div>'+
   '<div class="col" style="gap:18px"><div><div class="cap">Món '+CATN[d.c].toLowerCase()+' · ảnh minh họa</div><h1 class="h1" style="margin-top:8px">'+esc(d.n)+'</h1></div>'+
   '<div class="row"><span class="num" style="font-size:40px">'+money(d.p)+'</span>'+(off?pill('Tạm hết','bad'):pill('Còn tại '+n+'/5 chi nhánh','ok'))+'</div>'+
   '<p class="lead">'+esc(d.desc)+'</p>'+
@@ -546,17 +552,61 @@ ACT.place=function(){
     var branchMsg=payload.order.branch_name?(' · Bếp: '+payload.order.branch_name):' · Đơn vào hàng chờ (ngoài bán kính 10km)';
     toast('Đã tạo đơn hàng '+payload.order.code+branchMsg);
 
+    // Mở overlay dispatch để khách hàng xem quá trình điều phối
+    S.dispatchPreview={
+      reason: payload.dispatch_reason||'no_candidate',
+      chosen_branch_name: payload.dispatch_chosen_branch_name||null,
+      chosen_branch_id: payload.dispatch_breakdown?payload.dispatch_breakdown.chosen_branch_id:null,
+      score: payload.dispatch_breakdown?payload.dispatch_breakdown.score:null,
+      distance_km: payload.dispatch_breakdown?payload.dispatch_breakdown.distance_km:null,
+      candidates: payload.dispatch_breakdown?payload.dispatch_breakdown.candidates||[]:[]
+    };
+    S.dispatchStep=0;
+    S.layer={k:'dispatch'};
+    renderLayer();
+    _runDispatchAnimation();
+
+    // Nếu thanh toán QR, sau khi xem xong overlay sẽ chuyển sang SePay
     if(payload.order.payment_method==='qr'){
-      toast('Đang chuyển tới cổng thanh toán SePay…');
-      startSePayPayment(payload.order.code).catch(function(error){
-        toast(error.message||'Không thể khởi tạo thanh toán. Bạn có thể thử lại trong đơn hàng.');
-        go('orders');
-      });
+      setTimeout(function(){
+        S.layer=null;renderLayer();
+        toast('Đang chuyển tới cổng thanh toán SePay…');
+        startSePayPayment(payload.order.code).catch(function(error){
+          toast(error.message||'Không thể khởi tạo thanh toán. Bạn có thể thử lại trong đơn hàng.');
+          go('orders');
+        });
+      }, 3500);
       return;
     }
-    toast('Đã tạo đơn hàng '+payload.order.code);
-    go('orders');
+
+    // Sau khi xem xong overlay (khoảng 3.5s), tự động chuyển sang orders
+    setTimeout(function(){
+      S.layer=null;renderLayer();
+      go('orders');
+    }, 3500);
   }).catch(reportApiError);
+};
+
+// Hàm chạy animation tuần tự cho overlay dispatch (chỉ hiển thị)
+function _runDispatchAnimation(){
+  var steps=[0,1,2,3];
+  var delay=700;
+  var i=0;
+  function next(){
+    if(i>=steps.length)return;
+    S.dispatchStep=steps[i];
+    renderLayer();
+    i++;
+    if(i<steps.length)setTimeout(next,delay);
+  }
+  setTimeout(next,200);
+}
+
+// Action đóng overlay sớm (nếu khách hàng bấm "Xem đơn hàng" hoặc "Đóng")
+ACT.dismissDispatch=function(){
+  S.layer=null;S.dispatchPreview=null;S.dispatchStep=0;
+  renderLayer();
+  go('orders');
 };
 
 /* ================= CUSTOMER: ORDERS ================= */
@@ -777,3 +827,78 @@ if(document.readyState==='loading'){
 }else{
   setupMapObserver();
 }
+
+/* ================= DISPATCH OVERLAY (Giao diện mới) ================= */
+LAY.dispatch=function(layer){
+  var p=S.dispatchPreview;
+  if(!p)return '';
+  var step=S.dispatchStep; // 0..3
+  var reason=p.reason;
+  var candidates=p.candidates||[];
+
+  // Tạo danh sách chi nhánh
+  var branchListHtml = candidates.map(function(c) {
+    var isChosen = (c.branch_id === p.chosen_branch_id);
+    var isInvalid = !c.is_valid;
+    
+    // Nếu chưa load xong (step < 2), tất cả đều mờ
+    var opacity = (step >= 2) ? (isInvalid ? '0.4' : '1') : '0.6';
+    if (isChosen && step >= 3) opacity = '1'; // Chi nhánh được chọn luôn sáng
+    
+    // Nhãn trạng thái
+    var badge = '';
+    if (step >= 2) {
+      if (isChosen) badge = '<span class="pill ok" style="margin-left:8px">ĐƯỢC CHỌN</span>';
+      else if (isInvalid) badge = '<span class="pill bad" style="margin-left:8px">'+esc(c.reason)+'</span>';
+      else badge = '<span class="pill terra" style="margin-left:8px">ĐANG MỞ</span>';
+    } else {
+      badge = '<span class="pill mute" style="margin-left:8px">ĐANG QUÉT...</span>';
+    }
+
+    // Thanh tiến trình (load)
+    var barColor = c.pct_load > 90 ? 'var(--bad)' : (c.pct_load > 75 ? 'var(--warn)' : 'var(--ok)');
+    var barHtml = '';
+    if (step >= 2) {
+       barHtml = '<div class="meter" style="margin-top:8px;max-width:200px"><i style="width:'+c.pct_load+'%;background:'+barColor+'"></i></div>';
+    }
+
+    // Hiệu ứng scan cho các chi nhánh chưa có kết quả
+    var scanClass = (step === 0 || step === 1) ? 'scanning' : '';
+
+    return '<div class="plate flat" style="margin-bottom:12px; opacity:'+opacity+'; transition: all 0.4s ease; border-left: 4px solid '+(isChosen && step >= 3 ? 'var(--ok)' : 'transparent')+'; position:relative; overflow:hidden;">'+
+      (step < 2 ? '<div class="scan-line"></div>' : '') +
+      '<div class="row">'+
+        '<div class="grow">'+
+          '<div style="display:flex; align-items:center;">'+
+            '<b class="num" style="font-size:20px">'+ (c.distance_km ? dec(c.distance_km) : '?') +'</b><span class="cap" style="margin:0 8px 0 2px">km</span>'+
+            '<b style="font-size:16px">Miêu Quán '+esc(c.branch_name)+'</b>'+
+            (step >= 2 ? badge : '')+
+          '</div>'+
+          '<div class="dim" style="font-size:13px; margin-top:4px;">'+esc(c.address)+'</div>'+
+          barHtml +
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  // Nút hành động
+  var footBtn='';
+  if(step>=3){
+    footBtn='<button class="btn terra blk" data-act="dismissDispatch">Xem đơn hàng của tôi</button>';
+  }
+
+  // Tiêu đề động
+  var title = step < 3 ? 'Đang tìm bếp phù hợp...' : (reason === 'ok' ? 'Đã tìm thấy bếp hoàn hảo!' : 'Rất tiếc, không tìm thấy bếp phù hợp');
+
+  return '<div class="ovl"></div>'+
+    '<div class="mdl" style="max-width:520px; padding: 24px;">'+
+      '<div class="cap" style="margin-bottom:6px; color:var(--terra)">Hệ thống điều phối tự động</div>'+
+      '<h2 class="h2" style="margin-bottom:18px; font-size:24px;">'+title+'</h2>'+
+      
+      '<div style="max-height: 50vh; overflow-y: auto; padding-right: 4px; margin-bottom: 18px;">'+
+        branchListHtml +
+      '</div>'+
+      
+      (footBtn?'<div>'+footBtn+'</div>':'<div style="text-align:center; padding:10px;"><div class="spinner"></div><div class="mono dim" style="font-size:12px;margin-top:8px">Đang tính toán khoảng cách và tải bếp...</div></div>')+
+    '</div>';
+};

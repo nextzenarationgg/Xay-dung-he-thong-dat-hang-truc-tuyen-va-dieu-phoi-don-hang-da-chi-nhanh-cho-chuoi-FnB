@@ -18,18 +18,21 @@ Promise.all([
 
 function renderProducts() {
   const grid = document.getElementById('qr-products');
-  grid.innerHTML = products.map(p => `
+  grid.innerHTML = products.map(p => {
+    var imgSrc = p.image_url ? (window.location.origin + p.image_url + '?t=' + Date.now()) : 'https://placehold.co/300x300?text=Anh+Mon';
+    
+    return `
     <div class="qr-card">
-      <img src="https://source.unsplash.com/random/300x200/?food,${encodeURIComponent(p.name)}" alt="${p.name}">
+      <img src="${imgSrc}" alt="${p.name}" loading="lazy">
       <div class="qr-card-info">
         <div class="qr-card-title">${p.name}</div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
           <span class="qr-card-price">${new Intl.NumberFormat('vi-VN').format(p.price)}đ</span>
           <button class="qr-add-btn" onclick="addToCart('${p.code}')">+</button>
         </div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function addToCart(code) {
@@ -65,18 +68,18 @@ function updateCartUI() {
 
   const cartItemsDiv = document.getElementById('cart-items');
   if (count === 0) {
-    cartItemsDiv.innerHTML = '<div style="text-align:center;color:#999;padding:20px 0">Giỏ hàng trống</div>';
+    cartItemsDiv.innerHTML = '<div style="text-align:center;color:#999;padding:30px 0;font-size:15px;">Giỏ hàng đang trống</div>';
   } else {
     cartItemsDiv.innerHTML = Object.values(cart).map(c => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee">
-        <div>
-          <div style="font-weight:600">${c.item.name}</div>
-          <div style="color:#c0392b;font-size:14px">${new Intl.NumberFormat('vi-VN').format(c.item.price)}đ</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0">
+        <div style="flex:1; padding-right: 10px;">
+          <div style="font-weight:600; font-size:15px; color:#333; margin-bottom:4px;">${c.item.name}</div>
+          <div style="color:#c0392b;font-size:14px;font-weight:600;">${new Intl.NumberFormat('vi-VN').format(c.item.price)}đ</div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <button onclick="removeFromCart('${c.item.code}')" style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:white">-</button>
-          <span style="font-weight:bold;width:20px;text-align:center">${c.qty}</span>
-          <button onclick="addToCart('${c.item.code}')" style="width:28px;height:28px;border-radius:50%;border:1px solid #ddd;background:white">+</button>
+        <div style="display:flex;align-items:center;gap:12px; background: #f8f9fa; padding: 4px; border-radius: 20px;">
+          <button onclick="removeFromCart('${c.item.code}')" style="width:28px;height:28px;border-radius:50%;border:none;background:white;box-shadow:0 1px 3px rgba(0,0,0,0.1); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">-</button>
+          <span style="font-weight:700;width:16px;text-align:center; font-size: 15px;">${c.qty}</span>
+          <button onclick="addToCart('${c.item.code}')" style="width:28px;height:28px;border-radius:50%;border:none;background:#c0392b;color:white;box-shadow:0 1px 3px rgba(0,0,0,0.1); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
         </div>
       </div>
     `).join('');

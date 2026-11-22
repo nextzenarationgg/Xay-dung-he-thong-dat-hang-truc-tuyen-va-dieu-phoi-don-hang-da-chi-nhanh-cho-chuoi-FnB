@@ -316,3 +316,20 @@ class DineInOrderItem(models.Model):
     @property
     def line_total(self):
         return self.unit_price * self.quantity
+class BranchProductAvailability(models.Model):
+    class Status(models.TextChoices):
+        AVAILABLE = "on", "Còn"
+        LOW = "low", "Sắp hết"
+        OUT_OF_STOCK = "off", "Hết"
+
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name="product_availabilities")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="availabilities")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.AVAILABLE)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("branch", "product")
+        ordering = ("product__name",)
+
+    def __str__(self):
+        return f"{self.branch.name} - {self.product.name}: {self.get_status_display()}"
