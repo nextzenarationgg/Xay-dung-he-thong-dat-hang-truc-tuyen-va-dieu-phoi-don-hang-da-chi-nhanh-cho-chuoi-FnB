@@ -5,6 +5,12 @@ var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelect
 var money=function(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'đ'};
 var clamp=function(v,a,b){return Math.max(a,Math.min(b,v))};
 var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+function productImageSrc(imageUrl){
+  if(!imageUrl)return null;
+  var url=new URL(imageUrl,window.location.origin);
+  url.searchParams.set('t',String(Date.now()));
+  return url.href;
+}
 var dec=function(n,d){return Number(n).toFixed(d==null?1:d).replace('.',',')};
 var ic=function(n){return '<svg class="ic" aria-hidden="true"><use href="#i-'+n+'"/></svg>'};
 var cat=function(){return '<svg viewBox="0 0 120 120" aria-hidden="true"><use href="#cat"/></svg>'};
@@ -262,7 +268,7 @@ function gateMatrix(res){
 }
 function dishCard(d){
   var n=dishBranches(d.id),off=n===0;
-  var imgSrc = d.image_url ? (window.location.origin + d.image_url + '?t=' + Date.now()) : null;
+  var imgSrc = productImageSrc(d.image_url);
   var artHtml = imgSrc ? '<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover;">' : art(d.id);
   
   return '<article class="dish'+(off?' off':'')+'" data-act="dish" data-id="'+d.id+'" tabindex="0"><div class="art">'+artHtml+(d.tag?'<span class="tagc pill terra solid"><span>'+d.tag+'</span></span>':'')+'</div><div class="db"><div class="dn">'+esc(d.n)+'</div><div class="ds">'+esc(d.sub)+'</div><div class="dr"><span class="price">'+money(d.p)+'</span>'+(off?pill('Tạm hết','bad'):'<button class="btn sm" data-act="add" data-id="'+d.id+'">+ Thêm</button>')+'</div><div class="av"><span class="dot'+(n<3?' warn':'')+(off?' bad':'')+'"></span>'+(off?'Hết ở mọi chi nhánh':'Còn tại '+n+'/5 chi nhánh')+'</div></div></article>';

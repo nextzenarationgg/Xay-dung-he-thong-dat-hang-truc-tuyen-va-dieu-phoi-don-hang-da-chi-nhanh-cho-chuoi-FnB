@@ -161,7 +161,7 @@ V.dish={dj:['/thuc-don/<slug:dish>/','customer/dish_detail.html','DishDetailView
   var rel=D.filter(function(x){return x.c!==d.c}).sort(function(a,b){return a.pop-b.pop}).slice(0,3);
   
   // KIỂM TRA VÀ LẤY ẢNH THẬT
-  var imgSrc = d.image_url ? (window.location.origin + d.image_url + '?t=' + Date.now()) : null;
+  var imgSrc = productImageSrc(d.image_url);
   var artHtml = imgSrc ? '<img src="'+imgSrc+'" style="width:100%;height:100%;object-fit:cover;">' : art(d.id);
 
   return '<div class="row" style="margin-bottom:18px"><button class="btn ghost sm" data-act="go" data-k="menu">← Thực đơn</button><span class="cap">'+CATN[d.c]+'</span></div>'+

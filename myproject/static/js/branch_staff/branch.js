@@ -47,9 +47,33 @@ function loadBranchOrders(){
   });
 }
 
+function fetchBranchProductsAvailability() {
+    var availabilityRequest = branchRequest('/api/branch/product-availability/', 'GET');
+    var catalogRequest = branchRequest('/api/products/', 'GET').catch(function(error) {
+        console.error('Could not load the shared product catalog for branch images:', error);
+        return null;
+    });
+
+    return Promise.all([availabilityRequest, catalogRequest]).then(function(results) {
+        var imageByCode = {};
+        var catalog = results[1] && results[1].products ? results[1].products : [];
+        catalog.forEach(function(product) {
+            imageByCode[product.code] = product.image_url;
+        });
+
+        return (results[0].products || []).map(function(product) {
+            return Object.assign({}, product, {
+                image_url: Object.prototype.hasOwnProperty.call(imageByCode, product.id)
+                    ? imageByCode[product.id]
+                    : product.image_url
+            });
+        });
+    });
+}
+
 function loadBranchProductsAvailability() {
-    return branchRequest('/api/branch/product-availability/', 'GET').then(function(payload) {
-        branchProductsAvailability = payload.products;
+    return fetchBranchProductsAvailability().then(function(products) {
+        branchProductsAvailability = products;
     }).catch(function(error) {
         console.error('Lỗi tải trạng thái món:', error);
     });
@@ -250,7 +274,7 @@ function pollBranchOrders(){
     branchRequest('/api/branch/orders/','GET'),
     branchRequest('/api/branch/ingredients/','GET'),
     branchRequest('/api/branch/dine-in-orders/','GET'),
-    branchRequest('/api/branch/product-availability/','GET')
+    fetchBranchProductsAvailability()
   ]).then(function(results){
     if(actionVersion!==branchActionVersion)return;
     
@@ -267,8 +291,7 @@ function pollBranchOrders(){
     var payloadDineIn = results[2];
     branchDineInOrders = payloadDineIn.orders;
 
-    var payloadAvailability = results[3];
-    branchProductsAvailability = payloadAvailability.products;
+    branchProductsAvailability = results[3];
     
     var currentOrders=JSON.stringify([branchData,branchOrders,branchShippers,branchOrdersError]);
     var currentIngredients=JSON.stringify(branchIngredients);
@@ -661,7 +684,8 @@ V['b-menu']={dj:['/chi-nhanh/thuc-don/','branch/menu_availability.html','BranchM
   '<div class="fld" style="max-width:340px;margin-bottom:16px"><label for="bmq">Tìm món</label><input id="bmq" class="in" type="search" data-in="bmq" value="'+esc(S.bmq||'')+'" placeholder="Tên món…"></div>'+
   '<section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Món</th><th>Danh mục</th><th class="tr">Giá chuỗi</th><th>Nguyên liệu (1 phần)</th><th>Tại chi nhánh</th></tr></thead><tbody>'+
   (l.length ? l.map(function(d){
-    var imgHtml = d.image_url ? '<img src="'+d.image_url+'" style="width:44px;height:44px;object-fit:cover;border-radius:4px">' : '<div class="art" style="width:44px;height:44px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+art(d.id)+'</div>';
+    var imgSrc = productImageSrc(d.image_url);
+    var imgHtml = imgSrc ? '<img src="'+esc(imgSrc)+'" style="width:44px;height:44px;object-fit:cover;border-radius:4px">' : '<div class="art" style="width:44px;height:44px;aspect-ratio:auto;border:1.5px solid var(--edge);flex:none">'+art(d.id)+'</div>';
     
     // Render danh sách nguyên liệu
     var ingHtml = '';
