@@ -1,46 +1,145 @@
-<!DOCTYPE html>
+{% load static %}
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Miêu Quán</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#14213d">
+    <title>Đăng nhập nội bộ · Miêu Quán</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Be+Vietnam+Pro:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@1,500;1,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/shared/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dashboard/login.css' %}">
 </head>
-<body>
-    <h1>MIÊU QUÁN</h1>
-    <h2>Đăng nhập hệ thống quản trị</h2>
+<body class="staff-login-page">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <defs>
+            <symbol id="cat" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="57" fill="none" stroke="currentColor" stroke-width="2.5"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="1"/>
+                <circle cx="46" cy="17" r="1.6" fill="currentColor"/>
+                <circle cx="60" cy="13.5" r="1.6" fill="currentColor"/>
+                <circle cx="74" cy="17" r="1.6" fill="currentColor"/>
+                <path d="M34 64 L31 28 L53 43 Q60 41.5 67 43 L89 28 L86 64 Q88 86 60 94 Q32 86 34 64Z" fill="currentColor"/>
+                <path d="M38 40 L48 46 L39 55Z M82 40 L72 46 L81 55Z" class="cterra"/>
+                <path d="M42 66 Q49 59 56 66 Q49 71 42 66Z M64 66 Q71 59 78 66 Q71 71 64 66Z" class="ceye"/>
+                <ellipse cx="49" cy="66" rx="1.8" ry="4" fill="currentColor"/>
+                <ellipse cx="71" cy="66" rx="1.8" ry="4" fill="currentColor"/>
+                <path d="M56.5 74 L63.5 74 L60 78.5Z" class="cterra"/>
+                <path d="M60 78.5 Q56 83 51.5 80.5 M60 78.5 Q64 83 68.5 80.5" fill="none" class="cline"/>
+                <path d="M41 76 L16 70 M41 80 L16 82 M79 76 L104 70 M79 80 L104 82" stroke="currentColor" stroke-width="1.6" fill="none"/>
+                <circle cx="71" cy="66" r="9" fill="none" class="cgold" stroke-width="2"/>
+                <path d="M80 70 Q86 86 78 100" class="cgold" fill="none" stroke-width="1.2"/>
+                <path d="M46 96 L60 92 L74 96 L74 104 L60 99 L46 104Z" fill="currentColor"/>
+                <circle cx="60" cy="96" r="3" class="cterra"/>
+            </symbol>
+        </defs>
+    </svg>
+    <main class="login-layout">
+        <aside class="login-story" aria-label="Miêu Quán">
+            <div class="story-topline">
+                <a class="login-brand" href="/" aria-label="Miêu Quán — về trang chủ">
+                    <span class="brand-seal" aria-hidden="true"><svg viewBox="0 0 120 120"><use href="#cat"/></svg></span>
+                    <span class="brand-copy">
+                        <strong>MIÊU QUÁN</strong>
+                        <small>ĐIỀU PHỐI THÔNG MINH</small>
+                    </span>
+                </a>
+                <span class="story-edition">CỔNG NỘI BỘ <i></i></span>
+            </div>
 
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
+            <div class="story-content">
+                <p class="story-kicker"><span></span> KẾT NỐI ĐỘI NGŨ MIÊU QUÁN</p>
+                <h1>Mỗi ca làm,<br>một trải nghiệm<br><em>trọn vị.</em></h1>
+                <p class="story-description">Không gian làm việc dành cho đội ngũ cửa hàng và quản trị viên hệ thống.</p>
 
-    <form method="post">
-        {% csrf_token %}
+                <div class="plate-art" aria-hidden="true">
+                    <span class="plate-orbit orbit-one"></span>
+                    <span class="plate-orbit orbit-two"></span>
+                    <span class="plate-center"></span>
+                    <span class="plate-spark spark-one">✳</span>
+                    <span class="plate-spark spark-two">✳</span>
+                    <span class="plate-caption">BẾP · QUẦY · CHI NHÁNH</span>
+                </div>
+            </div>
 
-        <div>
-            <label for="username">Tên đăng nhập</label>
-            <input
-                type="text"
-                id="username"
-                name="username"
-                required
-            >
-        </div>
+            <div class="story-footer">
+                <span>VẬN HÀNH MỖI NGÀY</span>
+                <span class="footer-rule"></span>
+                <span>MIÊU QUÁN · NỘI BỘ</span>
+            </div>
+        </aside>
 
-        <br>
+        <section class="login-side" aria-labelledby="login-heading">
+            <div class="login-panel">
+                <div class="panel-topline">
+                    <span class="access-tag"><span></span> STAFF &amp; ADMIN</span>
+                    <span class="panel-index">MQ / SIGN IN</span>
+                </div>
 
-        <div>
-            <label for="password">Mật khẩu</label>
-            <input
-                type="password"
-                id="password"
-                name="password"
-                required
-            >
-        </div>
+                <div class="login-heading-block">
+                    <p class="section-kicker">XIN CHÀO, ĐỒNG ĐỘI</p>
+                    <h2 id="login-heading">Chào mừng<br>trở lại.</h2>
+                    <p class="login-intro">Đăng nhập để tiếp tục vào không gian vận hành Miêu Quán.</p>
+                </div>
 
-        <br>
+                {% if error %}
+                <div class="login-error" role="alert">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5m0 4h.01"/></svg>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
 
-        <button type="submit">Đăng nhập</button>
-    </form>
+                <form class="login-form" method="post">
+                    {% csrf_token %}
+                    <div class="field-group">
+                        <label for="username">Tên đăng nhập</label>
+                        <div class="input-wrap">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c.6-3.4 3.1-5.2 7-5.2s6.4 1.8 7 5.2"/></svg>
+                            <input type="text" id="username" name="username" placeholder="Nhập tên đăng nhập" autocomplete="username" required>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="password">Mật khẩu</label>
+                        <div class="input-wrap">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v2"/></svg>
+                            <input type="password" id="password" name="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+                            <button class="password-toggle" type="button" aria-controls="password" aria-pressed="false">Hiện</button>
+                        </div>
+                    </div>
+
+                    <button class="login-submit" type="submit">
+                        <span>Đăng nhập hệ thống</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>
+                    </button>
+                </form>
+
+                <div class="login-note">
+                    <span class="note-mark" aria-hidden="true">✳</span>
+                    <p>Chỉ dành cho tài khoản nhân viên và quản trị viên.</p>
+                </div>
+            </div>
+
+            <footer class="login-footer">
+                <a href="/">← Về trang Miêu Quán</a>
+                <span>© MIÊU QUÁN</span>
+            </footer>
+        </section>
+    </main>
+    <script>
+        (() => {
+            const toggle = document.querySelector('.password-toggle');
+            const password = document.getElementById('password');
+
+            toggle.addEventListener('click', () => {
+                const showing = password.type === 'text';
+                password.type = showing ? 'password' : 'text';
+                toggle.textContent = showing ? 'Hiện' : 'Ẩn';
+                toggle.setAttribute('aria-pressed', String(!showing));
+            });
+        })();
+    </script>
 </body>
 </html>
