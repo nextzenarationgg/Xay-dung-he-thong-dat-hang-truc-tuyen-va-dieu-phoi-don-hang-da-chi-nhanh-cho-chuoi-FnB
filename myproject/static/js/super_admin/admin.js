@@ -70,7 +70,24 @@ V['a-ctrl']={dj:['/quan-tri/','admin/control_room.html','ControlRoomView (hx-get
   BR.forEach(function(x){var l=invLow(x.id).length;if(l>=4)al+='<div class="alr w"><i></i><div><b>'+esc(x.n)+': '+l+' nguyên liệu dưới ngưỡng</b><div style="color:var(--side-dim);font-size:12px">Có thể hết món trong ca chiều</div></div><span class="pill warn">Kho</span></div>'});
   if(!al)al='<div style="color:var(--side-dim);padding:10px 0">Không có cảnh báo.</div>';
   var hr=['08','09','10','11','12','13','14','15','16','17','18','19','20','21'];
-  var heat='<div class="heat" style="margin-bottom:5px"><span></span>'+hr.map(function(h,i){return '<span class="h">'+(i%2?'':h)+'</span>'}).join('')+'</div>'+BR.map(function(x){return '<div class="heat" style="margin-bottom:3px"><span>'+x.id+'</span>'+HLOAD[x.id].map(function(v,i){return '<span class="c'+(i===2?' now':'')+'" style="--v:'+v+'" title="'+x.n+' '+hr[i]+'h: '+Math.round(v*100)+'%"></span>'}).join('')+'</div>'}).join('');
+  var heat = '<div class="heat" style="margin-bottom:5px"><span></span>'
+    + hr.map(function(h,i) {
+        return '<span class="h">'+(i%2?'':h)+'</span>';
+    }).join('')
+    + '</div>'
+    + BR.map(function(x) {
+        var loadData = Array.isArray(HLOAD[x.id])
+            ? HLOAD[x.id]
+            : Array(14).fill(0);
+
+        return '<div class="heat" style="margin-bottom:3px"><span>'+x.id+'</span>'
+            + loadData.map(function(v,i) {
+                return '<span class="c'+(i===2?' now':'')
+                    + '" style="--v:'+v
+                    + '" title="'+x.n+' '+hr[i]+'h: '+Math.round(v*100)+'%"></span>';
+            }).join('')
+            + '</div>';
+    }).join('');
   var mat=res.length?'<table class="cmat"><thead><tr><th>Chi nhánh</th><th>Khoảng cách</th><th>Đơn đang xử lý</th><th>Chuẩn bị ước tính</th><th>Món sẵn có</th><th>Điểm</th></tr></thead><tbody>'+res.map(function(r){var av=feat.items.length-r.miss.length;return '<tr class="'+(r.ok?(r===win?'win':''):'x')+'"><td><b>'+esc(r.b.n)+'</b>'+(r.ok?'':'<div style="color:#F58C83;font-size:11px">'+esc(r.reasons[0])+'</div>')+'</td><td>'+dec(r.dist)+' km</td><td>'+r.load+' / '+r.b.cap+'<span class="mb" style="width:'+Math.round(r.pct*50)+'px"></span></td><td>~'+r.prep+' phút</td><td>'+av+' / '+feat.items.length+'</td><td><b>'+(r.ok?r.score:'—')+'</b></td></tr>'}).join('')+'</tbody></table>':'';
   return '<div class="ctrl"><div class="ctrlh"><span class="live">TRỰC TIẾP</span><div class="grow"><div style="font:800 20px var(--f-d);font-stretch:118%">Phòng điều phối toàn chuỗi</div><div class="cap">Dữ liệu thời gian thực</div></div><button class="btn terra" data-act="sim">+ Mô phỏng đơn mới</button><button class="btn ghost" data-act="go" data-k="a-cfg">Chỉnh trọng số</button></div>'+
   '<div class="kstrip"><div><div class="cap">Đơn hôm nay</div><div class="num">'+n+'</div><div class="d">'+act.length+' đang xử lý</div></div><div><div class="cap">Doanh thu</div><div class="num">'+dec(rev/1e6,1)+' tr</div><div class="d">Mục tiêu ngày 62 tr</div></div><div><div class="cap">Điều phối TB</div><div class="num">2,4 s</div><div class="d">Từ lúc đặt tới khi chốt bếp</div></div><div><div class="cap">Tự động chọn bếp</div><div class="num">'+dec(auto,1)+'%</div><div class="d">'+(8+S.manual)+' lần chuyển thủ công</div></div><div><div class="cap">Đơn trễ</div><div class="num" style="color:'+(late.length?'#F58C83':'#F4E4AE')+'">'+late.length+'</div><div class="d">Quá hạn xác nhận hoặc chế biến</div></div></div>'+
