@@ -704,6 +704,11 @@ window.submitNewProduct = function() {
 
 /* ================= ĐỒNG BỘ DỮ LIỆU THẬT & TÍNH TOÁN ĐIỀU PHỐI ================= */
 
+// [FIX LỖI] Ghi đè các hàm dùng chung để tránh lỗi undefined ở trang Admin
+window.invLow = function(bid) { return []; }; // Tạm thời bỏ qua cảnh báo kho cho Admin
+window.slaState = function(o) { return null; }; // Tạm thời bỏ qua cảnh báo trễ hạn
+window.bOrd = function(bid) { return window.orders.filter(function(o) { return o.br === bid; }); };
+
 function getCsrfToken() {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -731,12 +736,12 @@ function calcDistance(lat1, lon1, lat2, lon2) {
     return Math.round((R * c) * 10) / 10;
 }
 
-// [QUAN TRỌNG] Ghi đè hàm kiểm tra món ăn: Mặc định Admin luôn coi là còn đủ món
+// 2. Ghi đè hàm kiểm tra món ăn
 window.isAv = function(bid, did) { 
     return true; 
 };
 
-// 2. Ghi đè hàm tính điểm để sử dụng tọa độ thực tế
+// 3. Ghi đè hàm tính điểm sử dụng tọa độ thực tế
 window.evalBranches = function(items, order, R) {
     R = R || RULES;
     var out = [];
@@ -779,7 +784,7 @@ window.evalBranches = function(items, order, R) {
     return out;
 };
 
-// 3. Ghi đè hàm vẽ bảng so sánh
+// 4. Ghi đè hàm vẽ bảng so sánh
 window.gateMatrix = function(res) {
   if (!res || !res.length) return '<div class="empty">Không có dữ liệu chi nhánh.</div>';
   var win = res.filter(function(r) { return r.ok; })[0];
@@ -802,7 +807,7 @@ window.gateMatrix = function(res) {
   }).join('') + '</tbody></table></div>';
 };
 
-// 4. Ghi đè giao diện tab Điều phối (truyền đúng tọa độ thật)
+// 5. Ghi đè giao diện tab Điều phối
 var originalDispHtml = V['a-disp'].html;
 V['a-disp'].html = function() {
     var pendingOrders = window.orders.filter(function(o) { return o.st === 0 || o.br === 'ALL'; });
@@ -825,7 +830,7 @@ V['a-disp'].html = function() {
     return html;
 };
 
-// 5. Kết nối API Database
+// 6. Kết nối API Database
 function loadBranches() {
     return fetch('/api/admin/branches/', { credentials: 'same-origin' })
         .then(r => r.json())
@@ -894,7 +899,7 @@ function syncAdminOrders() {
         }).catch(err => console.error("Lỗi đồng bộ đơn hàng:", err));
 }
 
-// 6. Khởi tạo dữ liệu
+// 7. Khởi tạo dữ liệu
 Promise.all([loadBranches(), loadUsers(), loadProducts()])
     .then(() => {
         return syncAdminOrders();
@@ -907,7 +912,7 @@ Promise.all([loadBranches(), loadUsers(), loadProducts()])
         initApp(); 
     });
 
-// 7. Ghi đè các nút thao tác
+// 8. Ghi đè các nút thao tác
 ACT.bopen = function(d) {
     var b = BM[d.id]; var newStatus = !b.open;
     fetch('/api/admin/branches/', {
@@ -958,7 +963,7 @@ ACT.reassign = function(d) {
     }).catch(err => toast('Lỗi kết nối API chuyển bếp.'));
 };
 
-// 8. Tự động cập nhật
+// 9. Tự động cập nhật
 setInterval(function() {
     if (window.S && (window.S.key === 'a-ord' || window.S.key === 'a-disp')) {
         syncAdminOrders();
