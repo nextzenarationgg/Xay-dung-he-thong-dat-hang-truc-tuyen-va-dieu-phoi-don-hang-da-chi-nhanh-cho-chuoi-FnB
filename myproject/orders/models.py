@@ -243,11 +243,26 @@ class DineInOrder(models.Model):
         PENDING = "pending", "Mới nhận"
         PREPARING = "preparing", "Đang chuẩn bị"
         SERVED = "served", "Đã phục vụ"
+        COMPLETED = "completed", "Hoàn thành"
         CANCELLED = "cancelled", "Đã hủy"
+
+    class PaymentMethod(models.TextChoices):
+        CASH = "cash", "Tiền mặt"
+        QR = "qr", "Quét QR"
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "pending", "Chờ thanh toán"
+        PAID = "paid", "Đã thanh toán"
 
     branch = models.ForeignKey(Branch, on_delete=models.PROTECT, related_name='dine_in_orders')
     table = models.ForeignKey(Table, on_delete=models.PROTECT, related_name='orders')
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_method = models.CharField(max_length=10, choices=PaymentMethod.choices, blank=True)
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.choices,
+        default=PaymentStatus.PENDING,
+    )
     total = models.PositiveBigIntegerField(default=0)
     note = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -258,6 +273,37 @@ class DineInOrder(models.Model):
 
     def __str__(self):
         return f"Đơn {self.id} - {self.table.name}"
+
+
+class DineInPaymentTransaction(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Đang chờ"
+        PAID = "paid", "Đã thanh toán"
+        VOIDED = "voided", "Đã hủy"
+
+    table = models.ForeignKey(
+        Table,
+        on_delete=models.PROTECT,
+        related_name="payment_transactions",
+    )
+    orders = models.ManyToManyField(
+        DineInOrder,
+        related_name="payment_transactions",
+    )
+    invoice_number = models.CharField(max_length=64, unique=True)
+    amount = models.PositiveBigIntegerField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    provider_order_id = models.CharField(max_length=128, blank=True)
+    provider_transaction_id = models.CharField(max_length=128, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return self.invoice_number
 
 class DineInOrderItem(models.Model):
     order = models.ForeignKey(DineInOrder, on_delete=models.CASCADE, related_name='items')

@@ -40,27 +40,34 @@ def checkout_configuration_error():
     return ""
 
 
-def build_checkout_data(order, payment):
+def build_checkout_data(
+    order,
+    payment,
+    *,
+    order_description=None,
+    customer_id=None,
+    return_route="sepay_payment_return",
+):
     base_url = settings.SEPAY_PUBLIC_BASE_URL.rstrip("/")
     fields = {
         "order_amount": str(payment.amount),
         "merchant": settings.SEPAY_MERCHANT_ID,
         "currency": "VND",
         "operation": "PURCHASE",
-        "order_description": f"Thanh toan don hang {order.code}",
+        "order_description": order_description or f"Thanh toan don hang {order.code}",
         "order_invoice_number": payment.invoice_number,
-        "customer_id": str(order.customer_id),
+        "customer_id": str(order.customer_id if customer_id is None else customer_id),
         "payment_method": "BANK_TRANSFER",
         "success_url": base_url + reverse(
-            "sepay_payment_return",
+            return_route,
             kwargs={"result": "success", "invoice_number": payment.invoice_number},
         ),
         "error_url": base_url + reverse(
-            "sepay_payment_return",
+            return_route,
             kwargs={"result": "error", "invoice_number": payment.invoice_number},
         ),
         "cancel_url": base_url + reverse(
-            "sepay_payment_return",
+            return_route,
             kwargs={"result": "cancel", "invoice_number": payment.invoice_number},
         ),
         "lang": "vi",

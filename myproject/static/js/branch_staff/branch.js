@@ -6,6 +6,7 @@ var branchIngredients=[];
 var branchHistory=[];
 var branchTables=[];
 var branchDineInOrders=[];
+var branchSelectedTablePaymentMethod=null;
 var branchPurchaseHistory=[]; // Biến lưu lịch sử nhập hàng
 
 S.dineTab = S.dineTab || 'all'; 
@@ -858,10 +859,11 @@ ACT.bassign=function(d){
 
 /* ================= QUẢN LÝ ĐƠN TẠI BÀN ================= */
 V['b-dine-in']={dj:['/api/branch/dine-in-orders/','branch/dinein.html','Đơn tại bàn'],html:function(){
-  var counts = { all: branchDineInOrders.length, serving: 0, served: 0, cancelled: 0 };
+  var counts = { all: branchDineInOrders.length, serving: 0, served: 0, completed: 0, cancelled: 0 };
   branchDineInOrders.forEach(function(o) {
       if (o.status === 'pending' || o.status === 'preparing') counts.serving++;
       if (o.status === 'served') counts.served++;
+      if (o.status === 'completed') counts.completed++;
       if (o.status === 'cancelled') counts.cancelled++;
   });
 
@@ -869,6 +871,7 @@ V['b-dine-in']={dj:['/api/branch/dine-in-orders/','branch/dinein.html','Đơn t�
       ['all', 'Tất cả'],
       ['serving', 'Đang phục vụ'],
       ['served', 'Đã phục vụ'],
+      ['completed', 'Hoàn thành'],
       ['cancelled', 'Đã hủy']
   ].map(function(tab) {
       return '<button class="chip '+(S.dineTab === tab[0] ? 'on' : '')+'" data-act="dinetab" data-t="'+tab[0]+'">'+tab[1]+'<span class="n">'+counts[tab[0]]+'</span></button>';
@@ -878,6 +881,7 @@ V['b-dine-in']={dj:['/api/branch/dine-in-orders/','branch/dinein.html','Đơn t�
       if (S.dineTab === 'all') return true;
       if (S.dineTab === 'serving') return ['pending', 'preparing'].indexOf(o.status) > -1;
       if (S.dineTab === 'served') return o.status === 'served';
+      if (S.dineTab === 'completed') return o.status === 'completed';
       if (S.dineTab === 'cancelled') return o.status === 'cancelled';
       return true;
   });
@@ -897,7 +901,7 @@ V['b-dine-in']={dj:['/api/branch/dine-in-orders/','branch/dinein.html','Đơn t�
     return '<div class="plate" style="margin-bottom:16px">'+
       '<div class="row" style="border-bottom:1px solid var(--edge);padding-bottom:8px;margin-bottom:12px">'+
         '<div class="grow"><h3 class="h3" style="margin:0">'+esc(order.table_name)+'</h3><div class="mono dim" style="font-size:12px">'+esc(new Date(order.created_at).toLocaleTimeString('vi-VN'))+'</div></div>'+
-        '<div class="tr">'+pill(esc(order.status_label), order.status==='pending'?'warn':(order.status==='served'?'ok':'terra'))+'</div>'+
+        '<div class="tr">'+pill(esc(order.status_label), order.status==='pending'?'warn':(['served','completed'].indexOf(order.status)>-1?'ok':'terra'))+'</div>'+
       '</div>'+
       '<div class="col">'+itemsHtml+'</div>'+
       (order.note?'<div class="dim" style="margin-top:8px;font-size:13px;background:var(--paper-2);padding:8px;border-radius:4px">Ghi chú: '+esc(order.note)+'</div>':'')+
@@ -928,16 +932,15 @@ ACT['dine-status']=function(d){
 /* ================= QUẢN LÝ BÀN ================= */
 V['b-tables']={dj:['/api/branch/tables/','branch/tables.html','Quản lý bàn'],html:function(){
   var list = branchTables.map(function(t){
-    var isOccupied = t.status === 'occupied';
-    var color = isOccupied ? '#c0392b' : '#27ae60';
-    
     var activeOrders = branchDineInOrders.filter(function(o){ return o.table_name === t.name && ['pending','preparing','served'].indexOf(o.status) > -1; });
+    var isOccupied = t.status === 'occupied' || activeOrders.length > 0;
+    var color = isOccupied ? '#c0392b' : '#27ae60';
     var totalAmount = activeOrders.reduce(function(sum, o){ return sum + o.total; }, 0);
     var orderCountText = activeOrders.length > 0 ? '<br><span style="font-size:12px;color:var(--ink-2)">('+activeOrders.length+' đơn - '+money(totalAmount)+')</span>' : '';
 
     return '<div class="plate" style="text-align:center; border-top: 4px solid '+color+'">'+
       '<h3 class="h3" style="margin-bottom:8px">'+esc(t.name)+'</h3>'+
-      '<div style="margin-bottom:12px; font-weight:bold; color:'+color+'">'+esc(t.status_label) + orderCountText + '</div>'+
+      '<div style="margin-bottom:12px; font-weight:bold; color:'+color+'">'+(isOccupied?'Có khách':'Trống') + orderCountText + '</div>'+
       '<button class="btn terra blk" data-act="table-dialog" data-id="'+t.id+'">Chi tiết & QR</button>'+
     '</div>';
   }).join('');
@@ -951,6 +954,8 @@ ACT['table-dialog'] = function(d) {
     if(!table) return;
 
     var activeOrders = branchDineInOrders.filter(function(o){ return o.table_name === table.name && ['pending','preparing','served'].indexOf(o.status) > -1; });
+    var tableStatus = table.status === 'occupied' || activeOrders.length > 0 ? 'occupied' : 'empty';
+    var tableStatusLabel = tableStatus === 'occupied' ? 'Có khách' : 'Trống';
     var totalAmount = activeOrders.reduce(function(sum, o){ return sum + o.total; }, 0);
     
     var itemsHtml = '';
@@ -984,10 +989,10 @@ ACT['table-dialog'] = function(d) {
 
           <div class="row" style="margin-bottom:20px; align-items:flex-start;">
              <div style="flex:1;">
-                <div class="cap" style="margin-bottom:8px">Trạng thái: ${pill(table.status_label, table.status === 'empty' ? 'ok' : 'bad')}</div>
-                <button class="btn ${table.status === 'empty' ? 'terra' : 'ghost'}" style="width:100%; max-width:150px;" onclick="toggleTableStatus(${table.id}, '${table.status}')">
-                    ${table.status === 'empty' ? 'Đón khách' : 'Về Trống'}
-                </button>
+                <div class="cap" style="margin-bottom:8px">Trạng thái: ${pill(tableStatusLabel, tableStatus === 'empty' ? 'ok' : 'bad')}</div>
+                ${tableStatus === 'empty'
+                  ? `<button class="btn terra" style="width:100%; max-width:150px;" onclick="toggleTableStatus(${table.id}, '${tableStatus}')">Đón khách</button>`
+                  : `<button class="btn terra" style="width:100%; max-width:150px;" onclick="openTablePaymentDialog(${table.id})">Thanh toán</button>`}
              </div>
              <div style="text-align:center;">
                 <img src="${qrImg}" alt="QR" style="width:100px;height:100px;border-radius:8px;border:1px solid var(--edge); cursor:pointer;" onclick="window.open('${qrImg}')" title="Bấm để xem/phóng to mã QR">
@@ -1012,47 +1017,128 @@ ACT['table-dialog'] = function(d) {
     };
 };
 
-window.toggleTableStatus = function(tableId, currentStatus) {
-    var newStatus = currentStatus === 'empty' ? 'occupied' : 'empty';
-    
-    if (newStatus === 'empty') {
-        if (!confirm('Bạn có chắc chắn muốn đóng bàn này?\nToàn bộ đơn hàng và món ăn đang có tại bàn sẽ bị HỦY và không thể khôi phục.')) {
+window.openTablePaymentDialog = function(tableId) {
+    var table = branchTables.filter(function(t){ return t.id == tableId })[0];
+    if (!table) return;
+    var activeOrders = branchDineInOrders.filter(function(order) {
+        return order.table_name === table.name && ['pending', 'preparing', 'served'].indexOf(order.status) > -1;
+    });
+    var totalAmount = activeOrders.reduce(function(sum, order){ return sum + Number(order.total || 0); }, 0);
+    var detailsModal = document.getElementById('table-dialog-modal');
+    if (detailsModal) detailsModal.remove();
+    branchSelectedTablePaymentMethod = null;
+
+    var modalHtml = `
+      <div id="table-payment-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px);">
+        <div style="background:var(--paper);color:var(--ink);border-radius:12px;width:100%;max-width:420px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+          <div class="row" style="margin-bottom:18px;border-bottom:1px solid var(--edge);padding-bottom:12px;">
+            <h3 class="h3" style="margin:0;">Thanh toán ${esc(table.name)}</h3>
+            <button id="close-table-payment-modal" type="button" style="background:none;border:none;color:var(--ink);font-size:24px;cursor:pointer;line-height:1;">&times;</button>
+          </div>
+          <div class="row" style="margin-bottom:18px;padding:12px;background:var(--paper-2);border-radius:8px;">
+            <span class="cap">Tổng thanh toán</span>
+            <b class="num" style="font-size:20px;color:var(--terra);">${money(totalAmount)}</b>
+          </div>
+          <div class="cap" style="margin-bottom:8px;">Chọn phương thức thanh toán</div>
+          <div class="col" style="gap:8px;margin-bottom:12px;">
+            <button id="table-payment-cash" type="button" class="btn ghost blk" aria-pressed="false" onclick="selectTablePaymentMethod('cash')">Trả tiền mặt</button>
+            <button id="table-payment-qr" type="button" class="btn ghost blk" aria-pressed="false" onclick="selectTablePaymentMethod('qr')">Quét QR</button>
+          </div>
+          <div id="table-payment-selection" class="dim" style="font-size:12px;margin-bottom:14px;min-height:16px;" aria-live="polite">Vui lòng chọn phương thức thanh toán.</div>
+          <button id="confirm-table-payment" type="button" class="btn terra blk" disabled onclick="confirmTablePayment(${table.id})">Xác nhận thanh toán</button>
+          <button class="btn ghost blk" style="margin-top:8px;" type="button" onclick="document.getElementById('table-payment-modal').remove()">Đóng</button>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('close-table-payment-modal').onclick = function() {
+        document.getElementById('table-payment-modal').remove();
+    };
+};
+
+window.selectTablePaymentMethod = function(method) {
+    var methods = {
+        cash: { id: 'table-payment-cash', label: 'Trả tiền mặt' },
+        qr: { id: 'table-payment-qr', label: 'Quét QR' }
+    };
+    var selected = methods[method];
+    if (!selected) return;
+    branchSelectedTablePaymentMethod = method;
+
+    Object.keys(methods).forEach(function(key) {
+        var button = document.getElementById(methods[key].id);
+        if (!button) return;
+        button.classList.toggle('terra', key === method);
+        button.classList.toggle('ghost', key !== method);
+        button.setAttribute('aria-pressed', key === method ? 'true' : 'false');
+    });
+
+    var selection = document.getElementById('table-payment-selection');
+    if (selection) selection.textContent = 'Đã chọn: ' + selected.label;
+    var confirmButton = document.getElementById('confirm-table-payment');
+    if (confirmButton) confirmButton.disabled = false;
+};
+
+function submitBranchSePayCheckout(checkout) {
+    if (!checkout || !checkout.action || !checkout.fields) {
+        throw new Error('Không nhận được dữ liệu thanh toán QR.');
+    }
+    var form = document.createElement('form');
+    form.method = checkout.method || 'POST';
+    form.action = checkout.action;
+    Object.keys(checkout.fields).forEach(function(key) {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = String(checkout.fields[key]);
+        form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+}
+
+window.confirmTablePayment = function(tableId) {
+    if (!branchSelectedTablePaymentMethod) return;
+    var paymentMethod = branchSelectedTablePaymentMethod;
+    var confirmButton = document.getElementById('confirm-table-payment');
+    var cashButton = document.getElementById('table-payment-cash');
+    var qrButton = document.getElementById('table-payment-qr');
+    if (confirmButton) {
+        confirmButton.disabled = true;
+        confirmButton.textContent = 'Đang xử lý thanh toán…';
+    }
+    if (cashButton) cashButton.disabled = true;
+    if (qrButton) qrButton.disabled = true;
+    branchRequest('/api/branch/tables/' + tableId + '/payment/', 'POST', {
+        payment_method: paymentMethod
+    }).then(function(payload) {
+        if (paymentMethod === 'qr') {
+            submitBranchSePayCheckout(payload.checkout);
             return;
         }
-        
-        var table = branchTables.filter(function(t){ return t.id == tableId })[0];
-        if(!table) return;
-        
-        var activeOrders = branchDineInOrders.filter(function(o){ 
-            return o.table_name === table.name && ['pending','preparing','served'].indexOf(o.status) > -1; 
-        });
-        
-        var promises = activeOrders.map(function(o) {
-            return branchRequest('/api/branch/dine-in-orders/'+o.id+'/status/', 'POST', {status: 'cancelled'});
-        });
-        
-        Promise.all(promises).then(function() {
-            return branchRequest('/api/branch/tables/' + tableId + '/', 'PATCH', { status: 'empty' });
-        }).then(function(){
-            toast('Đã đóng bàn và hủy các đơn liên quan.');
-            document.getElementById('table-dialog-modal').remove();
-            loadDineInOrders().then(function(){ 
-                loadBranchTables().then(function(){ 
-                    render(); 
-                }); 
-            });
-        }).catch(function(e){ 
-            toast('Lỗi: ' + e.message); 
-        });
-        
-    } else {
-        branchRequest('/api/branch/tables/' + tableId + '/', 'PATCH', { status: 'occupied' })
-        .then(function(){
-            toast('Đã đón khách vào bàn.');
-            document.getElementById('table-dialog-modal').remove();
-            loadBranchTables().then(function(){ render(); });
-        }).catch(function(e){ toast(e.message); });
-    }
+        var modal = document.getElementById('table-payment-modal');
+        if (modal) modal.remove();
+        toast('Đã thanh toán tiền mặt. Đơn đã hoàn thành.');
+        return Promise.all([loadDineInOrders(), loadBranchTables()]).then(function(){ render(); });
+    }).catch(function(error) {
+        toast(error.message || 'Không thể hoàn tất thanh toán.');
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.textContent = 'Xác nhận thanh toán';
+        }
+        if (cashButton) cashButton.disabled = false;
+        if (qrButton) qrButton.disabled = false;
+    });
+};
+
+window.toggleTableStatus = function(tableId, currentStatus) {
+    if (currentStatus !== 'empty') return;
+    branchRequest('/api/branch/tables/' + tableId + '/', 'PATCH', { status: 'occupied' })
+    .then(function(){
+        toast('Đã đón khách vào bàn.');
+        document.getElementById('table-dialog-modal').remove();
+        loadBranchTables().then(function(){ render(); });
+    }).catch(function(e){ toast(e.message); });
 };
 
 ACT['add-table']=function(){
@@ -1071,6 +1157,48 @@ ACT['del-table']=function(d){
   }).catch(function(e){toast(e.message)});
 };
 
+function handleDineInPaymentReturn() {
+  var params = new URLSearchParams(window.location.search);
+  var result = params.get('dine_in_payment_result');
+  var invoice = params.get('payment_invoice');
+  if (!result || !invoice) return;
+
+  var cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete('dine_in_payment_result');
+  cleanUrl.searchParams.delete('payment_invoice');
+  cleanUrl.searchParams.delete('table_id');
+  window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+
+  if (result !== 'success') {
+    toast(result === 'cancel' ? 'Bạn đã hủy thanh toán QR.' : 'Thanh toán QR chưa hoàn tất.');
+    return;
+  }
+
+  toast('Đang chờ SePay xác nhận thanh toán…');
+  function checkPayment(attempt) {
+    branchRequest('/api/branch/dine-in-payments/' + encodeURIComponent(invoice) + '/', 'GET')
+      .then(function(payload) {
+        if (payload.paid) {
+          toast('SePay đã xác nhận thanh toán. Đơn đã hoàn thành.');
+          return Promise.all([loadDineInOrders(), loadBranchTables()]).then(function(){ render(); });
+        }
+        if (payload.status === 'voided') {
+          toast('Giao dịch QR đã bị hủy, đơn chưa hoàn thành.');
+          return;
+        }
+        if (attempt < 20) {
+          setTimeout(function(){ checkPayment(attempt + 1); }, 1500);
+        } else {
+          toast('SePay chưa xác nhận giao dịch. Đơn chỉ hoàn thành sau khi thanh toán được xác nhận.');
+        }
+      })
+      .catch(function(error) {
+        toast(error.message || 'Không kiểm tra được trạng thái thanh toán.');
+      });
+  }
+  checkPayment(0);
+}
+
 // KHỞI ĐỘNG: Load tất cả dữ liệu cùng lúc
 Promise.all([
   loadBranchOrders(), 
@@ -1082,4 +1210,5 @@ Promise.all([
 ]).then(function(){
   initApp();
   branchUIReady=true;
+  handleDineInPaymentReturn();
 });

@@ -6,6 +6,7 @@ from orders.views import (
     branch_ingredient_list, branch_ingredient_detail, branch_order_history,
     branch_table_list, branch_table_detail, branch_dine_in_orders, 
     update_dine_in_order_status, public_table_info, public_create_dine_in_order,
+    branch_table_payment, branch_dine_in_payment_status,
     branch_product_update, branch_product_recipe_update,
     branch_inventory_save, branch_purchase_history,
     admin_product_create, admin_all_ingredients
@@ -44,6 +45,8 @@ urlpatterns = [
     # API Bàn & Đơn gọi món tại bàn (Dành cho Nhân viên)
     path('api/branch/tables/', branch_table_list, name='branch_table_list'),
     path('api/branch/tables/<int:pk>/', branch_table_detail, name='branch_table_detail'),
+    path('api/branch/tables/<int:pk>/payment/', branch_table_payment, name='branch_table_payment'),
+    path('api/branch/dine-in-payments/<str:invoice_number>/', branch_dine_in_payment_status, name='branch_dine_in_payment_status'),
     path('api/branch/dine-in-orders/', branch_dine_in_orders, name='branch_dine_in_orders'),
     path('api/branch/dine-in-orders/<int:pk>/status/', update_dine_in_order_status, name='update_dine_in_order_status'),
     
@@ -66,6 +69,11 @@ urlpatterns = [
         name="start_sepay_payment",
     ),
     path("payments/sepay/ipn/", order_views.sepay_ipn, name="sepay_ipn"),
+    path(
+        "payments/sepay/dine-in-return/<str:result>/<str:invoice_number>/",
+        order_views.sepay_dine_in_payment_return,
+        name="sepay_dine_in_payment_return",
+    ),
     path(
         "payments/sepay/return/<str:result>/<str:invoice_number>/",
         order_views.sepay_payment_return,

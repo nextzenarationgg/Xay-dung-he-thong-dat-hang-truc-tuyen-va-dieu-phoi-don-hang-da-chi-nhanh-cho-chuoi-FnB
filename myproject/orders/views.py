@@ -13,6 +13,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -24,13 +25,13 @@ from branches.models import Branch, Ingredient, PurchaseLog
 from orders.services.dispatch import is_valid_vn_coords, select_best_branch
 from .models import (
     Cart, CartItem, DispatchLog, Order, OrderItem, Product, ProductIngredient,
-    Table, DineInOrder, DineInOrderItem
+    Table, DineInOrder, DineInOrderItem, PaymentTransaction,
+    DineInPaymentTransaction,
 )
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 from django.conf import settings
 from accounts.models import BranchMembership
-from .models import Cart, CartItem, Order, OrderItem, PaymentTransaction, Product
 from .sepay import build_checkout_data, checkout_configuration_error, valid_ipn_secret
 
 DELIVERY_FEE = 15000
@@ -829,6 +830,132 @@ def branch_table_detail(request, pk):
     table.save()
     return JsonResponse({"ok": True})
 
+
+@require_POST
+@branch_api
+def branch_table_payment(request, pk):
+    branch = request.branch_membership.branch
+    data, error = parse_json(request)
+    if error:
+        return error
+
+    payment_method = data.get("payment_method")
+    if payment_method not in (
+        DineInOrder.PaymentMethod.CASH,
+        DineInOrder.PaymentMethod.QR,
+    ):
+        return JsonResponse({"error": "Vui lòng chọn phương thức thanh toán."}, status=400)
+
+    if payment_method == DineInOrder.PaymentMethod.QR:
+        config_error = checkout_configuration_error()
+        if config_error:
+            return JsonResponse({"error": config_error}, status=503)
+
+    active_statuses = (
+        DineInOrder.Status.PENDING,
+        DineInOrder.Status.PREPARING,
+        DineInOrder.Status.SERVED,
+    )
+
+    with transaction.atomic():
+        table = get_object_or_404(
+            Table.objects.select_for_update(),
+            pk=pk,
+            branch=branch,
+        )
+        orders = list(
+            DineInOrder.objects.select_for_update()
+            .filter(table=table, status__in=active_statuses)
+            .order_by("pk")
+        )
+        if not orders:
+            return JsonResponse(
+                {"error": "Bàn này không còn đơn cần thanh toán."},
+                status=409,
+            )
+
+        if (
+            payment_method == DineInOrder.PaymentMethod.CASH
+            and table.payment_transactions.filter(
+                status=DineInPaymentTransaction.Status.PENDING
+            ).exists()
+        ):
+            return JsonResponse(
+                {"error": "Bàn đang có giao dịch QR chờ xác nhận. Vui lòng đợi kết quả thanh toán."},
+                status=409,
+            )
+
+        amount = sum(order.total for order in orders)
+        if amount <= 0:
+            return JsonResponse(
+                {"error": "Tổng tiền thanh toán phải lớn hơn 0."},
+                status=400,
+            )
+
+        if payment_method == DineInOrder.PaymentMethod.CASH:
+            paid_at = timezone.now()
+            for order in orders:
+                order.status = DineInOrder.Status.COMPLETED
+                order.payment_method = DineInOrder.PaymentMethod.CASH
+                order.payment_status = DineInOrder.PaymentStatus.PAID
+                order.updated_at = paid_at
+            DineInOrder.objects.bulk_update(
+                orders,
+                ("status", "payment_method", "payment_status", "updated_at"),
+            )
+            table.status = Table.Status.EMPTY
+            table.save(update_fields=("status",))
+            return JsonResponse({"ok": True, "payment_status": "paid"})
+
+        order_ids = {order.pk for order in orders}
+        payment = (
+            DineInPaymentTransaction.objects.select_for_update()
+            .filter(table=table, status=DineInPaymentTransaction.Status.PENDING)
+            .order_by("-created_at")
+            .first()
+        )
+        if payment:
+            existing_order_ids = set(payment.orders.values_list("pk", flat=True))
+            if payment.amount != amount or existing_order_ids != order_ids:
+                payment.status = DineInPaymentTransaction.Status.VOIDED
+                payment.save(update_fields=("status",))
+                payment = None
+
+        if payment is None:
+            payment = DineInPaymentTransaction.objects.create(
+                table=table,
+                invoice_number=f"DIN-{table.pk}-{secrets.token_hex(4).upper()}",
+                amount=amount,
+            )
+            payment.orders.set(orders)
+
+    checkout = build_checkout_data(
+        table,
+        payment,
+        order_description=f"Thanh toan don tai ban {table.name}",
+        customer_id=f"table-{table.pk}",
+        return_route="sepay_dine_in_payment_return",
+    )
+    return JsonResponse({"checkout": checkout, "invoice_number": payment.invoice_number})
+
+
+@require_http_methods(["GET"])
+@branch_api
+def branch_dine_in_payment_status(request, invoice_number):
+    payment = get_object_or_404(
+        DineInPaymentTransaction.objects.select_related("table"),
+        invoice_number=invoice_number,
+        table__branch=request.branch_membership.branch,
+    )
+    return JsonResponse(
+        {
+            "invoice_number": payment.invoice_number,
+            "status": payment.status,
+            "paid": payment.status == DineInPaymentTransaction.Status.PAID,
+            "table_id": payment.table_id,
+        }
+    )
+
 # ================= QUẢN LÝ ĐƠN GỌI MÓN TẠI BÀN (NHÂN VIÊN) =================
 def dine_in_order_payload(order):
     return {
@@ -836,6 +963,10 @@ def dine_in_order_payload(order):
         "table_name": order.table.name,
         "status": order.status,
         "status_label": order.get_status_display(),
+        "payment_method": order.payment_method,
+        "payment_method_label": order.get_payment_method_display() if order.payment_method else "",
+        "payment_status": order.payment_status,
+        "payment_status_label": order.get_payment_status_display(),
         "created_at": order.created_at.isoformat(),
         "total": order.total,
         "note": order.note,
@@ -858,7 +989,11 @@ def branch_dine_in_orders(request):
 @branch_api
 def update_dine_in_order_status(request, pk):
     branch = request.branch_membership.branch
-    order = get_object_or_404(DineInOrder, pk=pk, branch=branch)
+    order_ref = get_object_or_404(
+        DineInOrder.objects.only("pk", "table_id"),
+        pk=pk,
+        branch=branch,
+    )
     
     data, error = parse_json(request)
     if error: return error
@@ -866,8 +1001,26 @@ def update_dine_in_order_status(request, pk):
     
     if new_status not in DineInOrder.Status.values:
         return JsonResponse({"error": "Trạng thái không hợp lệ."}, status=400)
-        
+    if new_status == DineInOrder.Status.COMPLETED:
+        return JsonResponse(
+            {"error": "Đơn chỉ được hoàn thành sau khi xác nhận thanh toán."},
+            status=400,
+        )
     with transaction.atomic():
+        table = Table.objects.select_for_update().get(pk=order_ref.table_id)
+        order = DineInOrder.objects.select_for_update().get(pk=order_ref.pk, branch=branch)
+        if order.status in (DineInOrder.Status.COMPLETED, DineInOrder.Status.CANCELLED):
+            return JsonResponse({"error": "Đơn này đã kết thúc."}, status=409)
+        if (
+            new_status == DineInOrder.Status.CANCELLED
+            and order.payment_transactions.filter(
+                status=DineInPaymentTransaction.Status.PENDING
+            ).exists()
+        ):
+            return JsonResponse(
+                {"error": "Đơn đang nằm trong giao dịch QR chờ xác nhận."},
+                status=409,
+            )
         old_status = order.status
         order.status = new_status
         
@@ -884,11 +1037,25 @@ def update_dine_in_order_status(request, pk):
                         ing.quantity = max(0, ing.quantity - total_deduct)
                         ing.save()
 
-        if new_status in [DineInOrder.Status.SERVED, DineInOrder.Status.CANCELLED]:
-            order.table.status = Table.Status.EMPTY
-            order.table.save()
-            
         order.save()
+        if new_status == DineInOrder.Status.CANCELLED:
+            has_open_orders = DineInOrder.objects.filter(
+                table=table,
+                status__in=[
+                    DineInOrder.Status.PENDING,
+                    DineInOrder.Status.PREPARING,
+                    DineInOrder.Status.SERVED,
+                ],
+            ).exists()
+            table.status = Table.Status.OCCUPIED if has_open_orders else Table.Status.EMPTY
+            table.save(update_fields=("status",))
+        elif new_status in (
+            DineInOrder.Status.PENDING,
+            DineInOrder.Status.PREPARING,
+            DineInOrder.Status.SERVED,
+        ) and table.status != Table.Status.OCCUPIED:
+            table.status = Table.Status.OCCUPIED
+            table.save(update_fields=("status",))
     return JsonResponse({"ok": True})
 
 # ================= DÀNH CHO KHÁCH HÀNG QUÉT MÃ QR =================
@@ -914,12 +1081,12 @@ def public_create_dine_in_order(request):
         return JsonResponse({"error": "Thiếu thông tin bàn hoặc món ăn."}, status=400)
         
     table = get_object_or_404(Table, qr_code=qr_code)
-    
-    if table.status != Table.Status.OCCUPIED:
-        table.status = Table.Status.OCCUPIED
-        table.save()
-        
+
     with transaction.atomic():
+        table = Table.objects.select_for_update().get(pk=table.pk)
+        if table.status != Table.Status.OCCUPIED:
+            table.status = Table.Status.OCCUPIED
+            table.save(update_fields=("status",))
         order = DineInOrder.objects.create(branch=table.branch, table=table, note=note, total=0)
         total = 0
         for item in items_data:
@@ -1147,23 +1314,46 @@ def sepay_ipn(request):
     if not invoice_number:
         return JsonResponse({"error": "Missing invoice number."}, status=400)
 
+    payment_pk = PaymentTransaction.objects.filter(
+        invoice_number=invoice_number
+    ).values_list("pk", flat=True).first()
+    dine_in_table_id = None
+    if payment_pk is None:
+        dine_in_table_id = DineInPaymentTransaction.objects.filter(
+            invoice_number=invoice_number
+        ).values_list("table_id", flat=True).first()
+    if payment_pk is None and dine_in_table_id is None:
+        return JsonResponse({"error": "Payment not found."}, status=404)
+
     with transaction.atomic():
-        payment = (
-            PaymentTransaction.objects.select_for_update()
-            .select_related("order")
-            .filter(invoice_number=invoice_number)
-            .first()
-        )
-        if payment is None:
+        if payment_pk is not None:
+            payment = (
+                PaymentTransaction.objects.select_for_update()
+                .select_related("order")
+                .filter(pk=payment_pk)
+                .first()
+            )
+            dine_in_payment = None
+        else:
+            Table.objects.select_for_update().get(pk=dine_in_table_id)
+            payment = None
+            dine_in_payment = (
+                DineInPaymentTransaction.objects.select_for_update()
+                .select_related("table")
+                .filter(invoice_number=invoice_number)
+                .first()
+            )
+        if payment is None and dine_in_payment is None:
             return JsonResponse({"error": "Payment not found."}, status=404)
 
         if notification_type == "ORDER_PAID":
+            amount = payment.amount if payment else dine_in_payment.amount
             try:
                 received_amount = Decimal(str(order_data.get("order_amount", "")))
             except (InvalidOperation, TypeError, ValueError):
                 return JsonResponse({"error": "Invalid payment amount."}, status=400)
             if (
-                received_amount != Decimal(payment.amount)
+                received_amount != Decimal(amount)
                 or order_data.get("order_currency") != "VND"
             ):
                 return JsonResponse({"error": "Payment amount or currency mismatch."}, status=400)
@@ -1172,25 +1362,75 @@ def sepay_ipn(request):
             transaction_id = ""
             if isinstance(transaction_data, dict):
                 transaction_id = str(transaction_data.get("transaction_id", ""))[:128]
-            payment.status = PaymentTransaction.Status.PAID
-            payment.provider_order_id = str(order_data.get("id", ""))[:128]
-            payment.provider_transaction_id = transaction_id
-            payment.paid_at = payment.paid_at or timezone.now()
-            payment.save(
-                update_fields=(
-                    "status",
-                    "provider_order_id",
-                    "provider_transaction_id",
-                    "paid_at",
+            provider_order_id = str(order_data.get("id", ""))[:128]
+            paid_at = timezone.now()
+
+            if payment is not None:
+                payment.status = PaymentTransaction.Status.PAID
+                payment.provider_order_id = provider_order_id
+                payment.provider_transaction_id = transaction_id
+                payment.paid_at = payment.paid_at or paid_at
+                payment.save(
+                    update_fields=(
+                        "status",
+                        "provider_order_id",
+                        "provider_transaction_id",
+                        "paid_at",
+                    )
                 )
-            )
-            if payment.order.payment_status != Order.PaymentStatus.PAID:
-                payment.order.payment_status = Order.PaymentStatus.PAID
-                payment.order.save(update_fields=("payment_status",))
+                if payment.order.payment_status != Order.PaymentStatus.PAID:
+                    payment.order.payment_status = Order.PaymentStatus.PAID
+                    payment.order.save(update_fields=("payment_status",))
+            else:
+                dine_in_payment.status = DineInPaymentTransaction.Status.PAID
+                dine_in_payment.provider_order_id = provider_order_id
+                dine_in_payment.provider_transaction_id = transaction_id
+                dine_in_payment.paid_at = dine_in_payment.paid_at or paid_at
+                dine_in_payment.save(
+                    update_fields=(
+                        "status",
+                        "provider_order_id",
+                        "provider_transaction_id",
+                        "paid_at",
+                    )
+                )
+                orders = list(
+                    dine_in_payment.orders.select_for_update()
+                    .exclude(status=DineInOrder.Status.CANCELLED)
+                    .order_by("pk")
+                )
+                for dine_in_order in orders:
+                    dine_in_order.status = DineInOrder.Status.COMPLETED
+                    dine_in_order.payment_method = DineInOrder.PaymentMethod.QR
+                    dine_in_order.payment_status = DineInOrder.PaymentStatus.PAID
+                    dine_in_order.updated_at = paid_at
+                DineInOrder.objects.bulk_update(
+                    orders,
+                    ("status", "payment_method", "payment_status", "updated_at"),
+                )
+                table = Table.objects.select_for_update().get(
+                    pk=dine_in_payment.table_id
+                )
+                has_open_orders = DineInOrder.objects.filter(
+                    table=table,
+                    status__in=(
+                        DineInOrder.Status.PENDING,
+                        DineInOrder.Status.PREPARING,
+                        DineInOrder.Status.SERVED,
+                    ),
+                ).exists()
+                table.status = Table.Status.OCCUPIED if has_open_orders else Table.Status.EMPTY
+                table.save(update_fields=("status",))
         elif notification_type == "TRANSACTION_VOID":
-            if payment.status == PaymentTransaction.Status.PENDING:
+            if payment is not None and payment.status == PaymentTransaction.Status.PENDING:
                 payment.status = PaymentTransaction.Status.VOIDED
                 payment.save(update_fields=("status",))
+            elif (
+                dine_in_payment is not None
+                and dine_in_payment.status == DineInPaymentTransaction.Status.PENDING
+            ):
+                dine_in_payment.status = DineInPaymentTransaction.Status.VOIDED
+                dine_in_payment.save(update_fields=("status",))
 
     return JsonResponse({"success": True}, status=200)
 
@@ -1210,4 +1450,27 @@ def sepay_payment_return(request, result, invoice_number):
     destination = "/?" + urlencode(
         {"payment_result": result, "order_code": payment.order.code}
     ) + "#orders"
+    return HttpResponseRedirect(destination)
+
+
+@require_http_methods(["GET"])
+def sepay_dine_in_payment_return(request, result, invoice_number):
+    if result not in {"success", "error", "cancel"}:
+        return JsonResponse({"error": "Invalid payment result."}, status=400)
+    with transaction.atomic():
+        payment = get_object_or_404(
+            DineInPaymentTransaction.objects.select_for_update(),
+            invoice_number=invoice_number,
+        )
+        if result in {"error", "cancel"} and payment.status == DineInPaymentTransaction.Status.PENDING:
+            payment.status = DineInPaymentTransaction.Status.VOIDED
+            payment.save(update_fields=("status",))
+
+    destination = reverse("branch_admin_dashboard") + "?" + urlencode(
+        {
+            "dine_in_payment_result": result,
+            "payment_invoice": payment.invoice_number,
+            "table_id": payment.table_id,
+        }
+    )
     return HttpResponseRedirect(destination)
