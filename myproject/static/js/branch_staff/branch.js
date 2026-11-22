@@ -747,7 +747,13 @@ V['b-inv']={dj:['/api/branch/ingredients/','branch/inventory.html','InventoryLis
   }
   
   return ph('CHI NHÁNH '+esc((branchData?branchData.name:'Chi nhánh').toLocaleUpperCase('vi-VN'))+' · '+all.length+' nguyên liệu','Kho <span class="it">hàng</span>', actionBtns)+
-  '<div class="row" style="margin-bottom:18px;justify-content:space-between"><div class="fld grow" style="max-width:340px"><label for="iq">Tìm nguyên liệu</label><input id="iq" class="in" type="search" data-in="binvq" value="'+esc(S.binvQ||'')+'" placeholder="Gạo, xá xíu, mỳ…"></div></div>'+
+  '<div class="row" style="margin-bottom:18px;justify-content:space-between; align-items:flex-end;">'+
+    '<div class="fld grow" style="max-width:340px; margin-bottom:0;">'+
+      '<label for="iq">Tìm nguyên liệu</label>'+
+      '<input id="iq" class="in" type="search" data-in="binvq" value="'+esc(S.binvQ||'')+'" placeholder="Gạo, xá xíu, mỳ…">'+
+    '</div>'+
+    '<button class="btn terra" data-act="open-add-ingredient">+ Thêm nguyên liệu</button>'+
+  '</div>'+
   
   '<section class="plate tight"><div class="tw"><table class="tbl"><thead><tr><th>Nguyên liệu</th><th style="text-align:center;">Tồn kho</th><th style="text-align:center;">Đơn vị</th><th style="text-align:center;">Đơn giá</th><th style="text-align:center;">Thao tác</th><th style="text-align:center;">Số lượng</th></tr></thead><tbody>'+
   (l.length ? l.map(function(r){
@@ -895,6 +901,78 @@ window.confirmSaveInv = function() {
         btn.innerText = 'Xác nhận Lưu';
         btn.disabled = false;
     });
+};
+
+/* ================= THÊM NGUYÊN LIỆU MỚI ================= */
+/* ================= THÊM NGUYÊN LIỆU MỚI ================= */
+ACT['open-add-ingredient'] = function() {
+    var modalHtml = `
+      <div id="add-ingredient-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px; backdrop-filter: blur(2px);">
+        <div style="background:var(--paper);color:var(--ink);border-radius:12px;width:100%;max-width:450px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,0.3);">
+          
+          <div class="row" style="margin-bottom:16px; border-bottom:1px solid var(--edge); padding-bottom:12px;">
+            <h3 class="h3" style="margin:0;">Thêm nguyên liệu mới</h3>
+            <button id="close-add-ing-modal" style="background:none;border:none;color:var(--ink);font-size:24px;cursor:pointer;line-height:1;">&times;</button>
+          </div>
+
+          <div class="fld" style="margin-bottom:16px;">
+            <label>Tên nguyên liệu <span style="color:red">*</span></label>
+            <input type="text" id="ai-name" class="in" style="width:100%;padding:10px;" placeholder="VD: Thịt bò, Gạo...">
+          </div>
+          
+          <div class="fld" style="margin-bottom:16px;">
+            <label>Đơn vị tính <span style="color:red">*</span></label>
+            <input type="text" id="ai-unit" class="in" style="width:100%;padding:10px;" placeholder="VD: kg, gram, quả...">
+          </div>
+
+          <!-- [CHANGE] Đã thay thế ô Định mức tối thiểu bằng Đơn giá nhập -->
+          <div class="fld" style="margin-bottom:20px;">
+            <label>Đơn giá nhập (VNĐ)</label>
+            <input type="number" id="ai-price" class="in" style="width:100%;padding:10px;" value="0" step="1000" min="0">
+          </div>
+
+          <div class="row" style="justify-content:flex-end; gap:10px;">
+            <button class="btn ghost" onclick="document.getElementById('add-ingredient-modal').remove()">Hủy</button>
+            <button class="btn terra" id="btn-save-ing" onclick="submitNewIngredient()">Lưu nguyên liệu</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.getElementById('close-add-ing-modal').onclick = function() {
+        document.getElementById('add-ingredient-modal').remove();
+    };
+};
+
+window.submitNewIngredient = function() {
+  var btn = document.getElementById('btn-save-ing');
+  btn.innerText = 'Đang lưu...';
+  btn.disabled = true;
+
+  var name = document.getElementById('ai-name').value.trim();
+  var unit = document.getElementById('ai-unit').value.trim();
+  // [CHANGE] Lấy giá trị đơn giá
+  var unit_price = parseFloat(document.getElementById('ai-price').value) || 0;
+
+  if (!name || !unit) {
+    toast('Vui lòng nhập tên và đơn vị tính.');
+    btn.innerText = 'Lưu nguyên liệu';
+    btn.disabled = false;
+    return;
+  }
+
+  // [CHANGE] Gửi unit_price lên Backend
+  branchRequest('/api/branch/ingredients/', 'POST', { name: name, unit: unit, unit_price: unit_price })
+  .then(function(data) {
+    toast('Thêm nguyên liệu thành công!');
+    document.getElementById('add-ingredient-modal').remove();
+    loadBranchIngredients().then(function(){ render(); });
+  })
+  .catch(function(err) {
+    toast('Lỗi: ' + err.message);
+    btn.innerText = 'Lưu nguyên liệu';
+    btn.disabled = false;
+  });
 };
 
 /* ---- delivery ---- */

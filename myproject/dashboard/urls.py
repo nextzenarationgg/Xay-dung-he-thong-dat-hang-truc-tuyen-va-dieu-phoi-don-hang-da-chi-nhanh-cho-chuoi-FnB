@@ -39,4 +39,8 @@ urlpatterns = [
         views.prototype_page,
         name='prototype_page'
     ),
+    path('api/admin/branches/', views.api_admin_branches, name='api_admin_branches'),
+    path('api/admin/users/', views.api_admin_users, name='api_admin_users'),
+    path('api/admin/orders/', views.api_admin_orders, name='api_admin_orders'),
+    path('api/admin/reassign/', views.api_admin_reassign_order, name='api_admin_reassign_order'),
 ]

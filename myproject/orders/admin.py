@@ -1,13 +1,18 @@
 from django.contrib import admin
+from .models import Cart, CartItem, Order, OrderItem, PaymentTransaction, Product, ProductIngredient
 
-from .models import Cart, CartItem, Order, OrderItem, PaymentTransaction, Product
-
+# [THÊM MỚI] Tạo bảng Inline để hiển thị công thức ngay trong trang Món ăn
+class ProductIngredientInline(admin.TabularInline):
+    model = ProductIngredient
+    extra = 1 # Số dòng trống mặc định để thêm mới
+    fields = ('ingredient_name', 'quantity_per_portion', 'unit') # Các cột hiển thị
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("code", "name", "category", "price", "is_active")
+    list_display = ("code", "name", "category", "price", "is_active", "image_url")
     list_filter = ("category", "is_active")
     search_fields = ("code", "name")
+    inlines = [ProductIngredientInline] # [THÊM MỚI] Gắn bảng công thức vào đây
 
 
 class OrderItemInline(admin.TabularInline):

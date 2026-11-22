@@ -18,10 +18,20 @@ class Product(models.Model):
     price = models.PositiveIntegerField()
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='products/', null=True, blank=True)
+    image_url = models.URLField(max_length=500, blank=True, default="")
     is_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ("name",)
+
+    @property
+    def display_image_url(self):
+        """Ưu tiên image_url (link Drive/URL), fallback image file cũ."""
+        if self.image_url:
+            return self.image_url
+        if self.image:
+            return self.image.url
+        return None
 
     def __str__(self):
         return self.name

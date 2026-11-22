@@ -3,6 +3,15 @@ const qrCode = document.body.getAttribute('data-qr');
 let products = [];
 let cart = {}; // { product_code: { item, qty } }
 
+// [CHANGE] Helper: chuẩn hóa URL ảnh trả về từ API
+// - URL tuyệt đối (http/https, VD Drive) → dùng nguyên
+// - Đường dẫn tương đối (/media/...)     → ghép origin + cache-bust
+function resolveProductImage(url) {
+  if (!url) return 'https://placehold.co/300x300?text=Anh+Mon';
+  if (/^https?:\/\//i.test(url)) return url;
+  return window.location.origin + url + '?t=' + Date.now();
+}
+
 // Tải thông tin bàn và menu
 Promise.all([
   fetch('/api/public/table/' + qrCode + '/').then(r => r.json()),
@@ -19,11 +28,12 @@ Promise.all([
 function renderProducts() {
   const grid = document.getElementById('qr-products');
   grid.innerHTML = products.map(p => {
-    var imgSrc = p.image_url ? (window.location.origin + p.image_url + '?t=' + Date.now()) : 'https://placehold.co/300x300?text=Anh+Mon';
-    
+    // [CHANGE] Dùng helper thay vì luôn ghép origin
+    var imgSrc = resolveProductImage(p.image_url);
+
     return `
     <div class="qr-card">
-      <img src="${imgSrc}" alt="${p.name}" loading="lazy">
+      <img src="${imgSrc}" alt="${p.name}" loading="lazy" onerror="this.src='https://placehold.co/300x300?text=Anh+Mon'">
       <div class="qr-card-info">
         <div class="qr-card-title">${p.name}</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">

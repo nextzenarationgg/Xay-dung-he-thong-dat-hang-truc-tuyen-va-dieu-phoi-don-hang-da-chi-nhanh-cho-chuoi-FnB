@@ -42,6 +42,30 @@ VOUCHERS = {
     "CUOITUAN15": {"kind": "percent", "value": 15, "maximum": 45000, "minimum": 150000, "expires": date(2026, 11, 30), "weekend": True},
 }
 
+# [CHANGE] Helpers: chuẩn hóa URL ảnh Google Drive thành URL ảnh trực tiếp
+_DRIVE_FILE_RE = re.compile(r'https?://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)')
+_DRIVE_OPEN_RE = re.compile(r'https?://drive\.google\.com/open\?id=([a-zA-Z0-9_-]+)')
+_DRIVE_UC_RE   = re.compile(r'https?://drive\.google\.com/uc\?(?:export=download&)?id=([a-zA-Z0-9_-]+)')
+
+
+def normalize_drive_url(url):
+    """Chuẩn hóa link chia sẻ Google Drive thành URL ảnh trực tiếp.
+
+    - drive.google.com/file/d/<ID>/view?...  -> lh3.googleusercontent.com/d/<ID>
+    - drive.google.com/open?id=<ID>          -> lh3.googleusercontent.com/d/<ID>
+    - drive.google.com/uc?id=<ID>            -> lh3.googleusercontent.com/d/<ID>
+    - URL khác giữ nguyên.
+    """
+    if not url:
+        return ""
+    url = url.strip()
+    for pattern in (_DRIVE_FILE_RE, _DRIVE_OPEN_RE, _DRIVE_UC_RE):
+        match = pattern.match(url)
+        if match:
+            return f"https://lh3.googleusercontent.com/d/{match.group(1)}"
+    return url
+
+
 def customer_api(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
@@ -119,7 +143,8 @@ def product_list(request):
                     "category": product.category,
                     "price": product.price,
                     "description": product.description,
-                    "image_url": product.image.url if product.image else None,
+                    # [CHANGE] Ưu tiên image_url (Drive/URL), fallback image file cũ
+                    "image_url": product.display_image_url,
                 }
                 for product in products
             ]
@@ -255,13 +280,11 @@ def claim_branch_order(request, code):
                     ing.save()
 
         # TỰ ĐỘNG CHUYỂN SANG "HẾT MÓN" NẾU KHÔNG ĐỦ 1 PHẦN
-        # Lấy tất cả các sản phẩm đang bán tại chi nhánh này
         availabilities = BranchProductAvailability.objects.filter(branch=branch).select_related('product')
         for av in availabilities:
             if av.status == BranchProductAvailability.Status.OUT_OF_STOCK:
-                continue # Đã hết rồi thì bỏ qua
+                continue
             
-            # Kiểm tra xem có đủ nguyên liệu làm 1 phần không
             recipes = ProductIngredient.objects.filter(product=av.product)
             can_make = True
             for recipe in recipes:
@@ -570,6 +593,12 @@ def branch_ingredient_list(request):
         min_q = float(data.get("min_quantity", 0))
     except ValueError:
         min_q = 0
+        
+    # [CHANGE] Nhận đơn giá từ Frontend gửi lên
+    try:
+        unit_price = float(data.get("unit_price", 0))
+    except ValueError:
+        unit_price = 0
     
     if not name or not unit:
         return JsonResponse({"error": "Vui lòng nhập tên và đơn vị tính."}, status=400)
@@ -577,7 +606,11 @@ def branch_ingredient_list(request):
     item, created = Ingredient.objects.get_or_create(
         branch=branch, 
         name=name,
-        defaults={"unit": unit, "min_quantity": min_q}
+        defaults={
+            "unit": unit, 
+            "min_quantity": min_q,
+            "unit_price": unit_price # [CHANGE] Lưu đơn giá vào DB
+        }
     )
     
     if not created:
@@ -585,7 +618,8 @@ def branch_ingredient_list(request):
         
     return JsonResponse({
         "id": item.id, "name": item.name, "unit": item.unit, 
-        "quantity": float(item.quantity), "min_quantity": float(item.min_quantity)
+        "quantity": float(item.quantity), "min_quantity": float(item.min_quantity),
+        "unit_price": float(item.unit_price) if item.unit_price is not None else 0 # [CHANGE] Trả về đơn giá
     }, status=201)
 
 @require_http_methods(["PATCH", "DELETE"])
@@ -642,7 +676,6 @@ def branch_inventory_save(request):
             for item_data in items_data:
                 ing = get_object_or_404(Ingredient, pk=item_data["id"], branch=branch)
                 
-                # Ép kiểu về Decimal để tính toán
                 old_qty = Decimal(str(ing.quantity))
                 old_price = Decimal(str(ing.unit_price)) if ing.unit_price else Decimal(0)
                 action = item_data["action"]
@@ -679,17 +712,11 @@ def branch_inventory_save(request):
                 details=details
             )
 
-            # ========================================================
-            # TỰ ĐỘNG QUÉT VÀ CẬP NHẬT TRẠNG THÁI MÓN SAU KHI LƯU KHO
-            # ========================================================
             availabilities = BranchProductAvailability.objects.filter(branch=branch).select_related('product')
             for av in availabilities:
-                # Nếu món đang "Hết" rồi thì không cần kiểm tra lại (tránh việc tự động chuyển lại thành Còn nếu kho được nhập thêm, 
-                # vì hiện tại quản lý đang set cứng trạng thái này)
                 if av.status == BranchProductAvailability.Status.OUT_OF_STOCK:
                     continue 
                 
-                # Kiểm tra xem với lượng kho hiện tại, có đủ nguyên liệu làm 1 phần món này không
                 recipes = ProductIngredient.objects.filter(product=av.product)
                 can_make = True
                 for recipe in recipes:
@@ -698,7 +725,6 @@ def branch_inventory_save(request):
                         can_make = False
                         break
                 
-                # Nếu không đủ nguyên liệu làm 1 phần, tự động chuyển thành Hết
                 if not can_make:
                     av.status = BranchProductAvailability.Status.OUT_OF_STOCK
                     av.save()
@@ -737,7 +763,6 @@ def branch_order_history(request):
     
     history_data = []
     
-    # 1. Xử lý đơn giao hàng
     for order in delivery_orders:
         order_items = []
         total_ingredients = {}
@@ -756,7 +781,6 @@ def branch_order_history(request):
                         total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
                     total_ingredients[key]["total"] += deducted
                     
-                    # Tính chi phí: Lấy đơn giá của nguyên liệu hiện tại trong kho
                     ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
                     if ing:
                         total_cost += deducted * float(ing.unit_price)
@@ -767,11 +791,10 @@ def branch_order_history(request):
             "code": order.code, "type": "Giao hàng", "created_at": order.created_at.isoformat(),
             "status": order.get_status_display(), "items": order_items,
             "total_ingredients": list(total_ingredients.values()),
-            "total_cost": total_cost, # Chi phí NVL
-            "revenue": float(order.total) # Tiền đơn
+            "total_cost": total_cost,
+            "revenue": float(order.total)
         })
         
-    # 2. Xử lý đơn tại bàn
     for order in dine_in_orders:
         order_items = []
         total_ingredients = {}
@@ -790,7 +813,6 @@ def branch_order_history(request):
                         total_ingredients[key] = {"name": recipe.ingredient_name, "unit": recipe.unit, "total": 0}
                     total_ingredients[key]["total"] += deducted
                     
-                    # Tính chi phí
                     ing = Ingredient.objects.filter(branch=branch, name__iexact=recipe.ingredient_name).first()
                     if ing:
                         total_cost += deducted * float(ing.unit_price)
@@ -807,8 +829,8 @@ def branch_order_history(request):
             "code": order_code, "type": "Tại bàn", "created_at": order.created_at.isoformat(),
             "status": order.get_status_display(), "items": order_items,
             "total_ingredients": list(total_ingredients.values()),
-            "total_cost": total_cost, # Chi phí NVL
-            "revenue": float(order.total) # Tiền đơn
+            "total_cost": total_cost,
+            "revenue": float(order.total)
         })
         
     history_data.sort(key=lambda x: x["created_at"], reverse=True)
@@ -1150,23 +1172,34 @@ def branch_product_update(request, code):
         return JsonResponse({
             "code": product.code, 
             "name": product.name, 
-            "price": product.price, # <-- Trả thêm giá
-            "image_url": product.image.url if product.image else None,
+            "price": product.price,
+            # [CHANGE] Ưu tiên image_url, fallback image file cũ
+            "image_url": product.display_image_url,
             "recipes": [{"name": r.ingredient_name, "qty": float(r.quantity_per_portion), "unit": r.unit} for r in recipes]
         })
         
     try:
         name = request.POST.get("name", "").strip()
-        price = request.POST.get("price") # <-- Nhận giá từ FormData
+        price = request.POST.get("price")
         if name: 
             product.name = name
         if price is not None:
-            product.price = int(price) # <-- Cập nhật giá
+            product.price = int(price)
+        # [CHANGE] Nhận link Drive/URL từ form
+        if 'image_url' in request.POST:
+            product.image_url = normalize_drive_url(request.POST.get("image_url", ""))
+        # Giữ fallback upload file cũ (nếu client cũ vẫn gửi)
         if 'image' in request.FILES: 
             product.image = request.FILES['image']
             
         product.save()
-        return JsonResponse({"ok": True, "name": product.name, "price": product.price, "image_url": product.image.url if product.image else None})
+        return JsonResponse({
+            "ok": True,
+            "name": product.name,
+            "price": product.price,
+            # [CHANGE] Trả về URL ưu tiên
+            "image_url": product.display_image_url,
+        })
     except Exception as e:
         return JsonResponse({"error": f"Lỗi lưu thông tin: {str(e)}"}, status=500)
 
@@ -1201,17 +1234,17 @@ def admin_product_create(request):
         return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền thêm món."}, status=403)
     
     try:
-        # Nhận dữ liệu từ FormData (vì có file ảnh)
         name = request.POST.get("name", "").strip()
         category = request.POST.get("category", "").strip()
         price = request.POST.get("price", "0")
         description = request.POST.get("description", "").strip()
         recipes_json = request.POST.get("recipes", "[]")
+        # [CHANGE] Nhận link Drive/URL từ form
+        image_url = normalize_drive_url(request.POST.get("image_url", ""))
         
         if not name or not category:
             return JsonResponse({"error": "Vui lòng nhập tên và danh mục món ăn."}, status=400)
             
-        # Tạo mã code tự động (VD: d21, d22...)
         import random
         import string
         while True:
@@ -1225,14 +1258,16 @@ def admin_product_create(request):
             category=category,
             price=int(price),
             description=description,
-            is_active=True
+            is_active=True,
+            # [CHANGE] Lưu link ảnh
+            image_url=image_url,
         )
         
+        # Giữ fallback upload file cũ
         if 'image' in request.FILES:
             product.image = request.FILES['image']
             product.save()
 
-        # Lưu định lượng nguyên liệu
         import json
         recipes = json.loads(recipes_json)
         for r in recipes:
@@ -1292,7 +1327,6 @@ def admin_all_ingredients(request):
     if request.user.role != 'super_admin':
         return JsonResponse({"error": "Chỉ quản trị viên tổng mới có quyền xem."}, status=403)
         
-    # Lấy tất cả nguyên liệu trong hệ thống, bỏ trùng lặp tên
     ingredients = Ingredient.objects.all().values('name', 'unit').distinct().order_by('name')
     return JsonResponse({"ingredients": list(ingredients)})
 
@@ -1524,14 +1558,12 @@ def branch_product_availability(request):
     branch = request.branch_membership.branch
 
     if request.method == "GET":
-        # Lấy tất cả sản phẩm đang active
         products = Product.objects.filter(is_active=True)
         avail_map = {
             av.product_id: av.status 
             for av in BranchProductAvailability.objects.filter(branch=branch)
         }
         
-        # Lấy tất cả công thức (nguyên liệu) của các món
         recipes = ProductIngredient.objects.filter(product__in=products)
         recipe_map = {}
         for r in recipes:
@@ -1550,9 +1582,10 @@ def branch_product_availability(request):
                 "name": p.name,
                 "category": p.category,
                 "price": p.price,
-                "image_url": p.image.url if p.image else None,
+                # [CHANGE] Ưu tiên image_url, fallback image file cũ
+                "image_url": p.display_image_url,
                 "status": avail_map.get(p.code, BranchProductAvailability.Status.AVAILABLE),
-                "ingredients": recipe_map.get(p.code, []) # <--- Thêm trường này
+                "ingredients": recipe_map.get(p.code, [])
             })
         return JsonResponse({"products": data})
 
